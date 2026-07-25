@@ -115,7 +115,7 @@ def test_imap_question_returns_setup_guidance_not_preflight():
     body, intent, _meta = reply
     assert intent == "email_imap_setup_guidance"
     assert "IMAP" in body
-    assert "Providers" in body
+    assert "Advanced settings" in body
     assert "Email (IMAP/SMTP)" in body
     assert "preflight" not in body.lower()
 
