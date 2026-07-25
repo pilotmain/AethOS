@@ -725,7 +725,7 @@ def try_single_loop_turn(
     operational report builders or deployment-target resolvers.
     """
     from aethos_core.chat.explicit_mutation_intent import compose_explicit_mutation_preflight_reply
-    from aethos_core.chat.service import ChatTurnResult
+    from aethos_core.chat.service import ChatTurnResult, _handled_to_result
     from aethos_core.provider.completion import ProviderResult, complete_chat
 
     mutation = compose_explicit_mutation_preflight_reply(raw, session_id=session_id)
