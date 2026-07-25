@@ -505,35 +505,38 @@ init_tty() {
   fi
 }
 
-ask() { # ask VAR "Prompt" "default"
-  local __var="$1" prompt="$2" def="${3:-}" ans=""
-  if [[ -z "$TTY_DEV" ]]; then printf -v "$__var" '%s' "$def"; return 0; fi
-  if [[ -n "$def" ]]; then
-    printf '%b' "  ${BOLD}${prompt}${RESET} ${DIM}[${def}]${RESET} " >/dev/tty
+ask() { # ask VAR "Prompt" "default" — VAR must not be named __ask_*
+  local __ask_var="$1" __ask_prompt="$2" __ask_def="${3:-}" __ask_ans=""
+  if [[ -z "$TTY_DEV" ]]; then printf -v "$__ask_var" '%s' "$__ask_def"; return 0; fi
+  if [[ -n "$__ask_def" ]]; then
+    printf '%b' "  ${BOLD}${__ask_prompt}${RESET} ${DIM}[${__ask_def}]${RESET} " >/dev/tty
   else
-    printf '%b' "  ${BOLD}${prompt}${RESET} " >/dev/tty
+    printf '%b' "  ${BOLD}${__ask_prompt}${RESET} " >/dev/tty
   fi
-  IFS= read -r ans <"$TTY_DEV" || ans=""
-  [[ -z "$ans" ]] && ans="$def"
-  printf -v "$__var" '%s' "$ans"
+  IFS= read -r __ask_ans <"$TTY_DEV" || __ask_ans=""
+  [[ -z "$__ask_ans" ]] && __ask_ans="$__ask_def"
+  printf -v "$__ask_var" '%s' "$__ask_ans"
 }
 
 ask_secret() { # ask_secret VAR "Prompt" — input hidden, never echoed or logged
-  local __var="$1" prompt="$2" ans=""
-  if [[ -z "$TTY_DEV" ]]; then printf -v "$__var" '%s' ""; return 0; fi
-  printf '%b' "  ${BOLD}${prompt}${RESET} ${DIM}(hidden)${RESET} " >/dev/tty
+  local __ask_var="$1" __ask_prompt="$2" __ask_ans=""
+  if [[ -z "$TTY_DEV" ]]; then printf -v "$__ask_var" '%s' ""; return 0; fi
+  printf '%b' "  ${BOLD}${__ask_prompt}${RESET} ${DIM}(hidden)${RESET} " >/dev/tty
   stty -echo <"$TTY_DEV" 2>/dev/null || true
-  IFS= read -r ans <"$TTY_DEV" || ans=""
+  IFS= read -r __ask_ans <"$TTY_DEV" || __ask_ans=""
   stty echo <"$TTY_DEV" 2>/dev/null || true
   printf '\n' >/dev/tty
-  printf -v "$__var" '%s' "$ans"
+  printf -v "$__ask_var" '%s' "$__ask_ans"
 }
 
 confirm() { # confirm "Prompt" y|n  → 0 when the answer is yes
   local prompt="$1" def="${2:-y}" ans=""
   if [[ "$ASSUME_YES" == "1" ]]; then return 0; fi
   if [[ -z "$TTY_DEV" ]]; then [[ "$def" == "y" ]]; return; fi
-  if [[ "$def" == "y" ]]; then ask ans "$prompt [Y/n]" "y"; else ask ans "$prompt [y/N]" "n"; fi
+  local hint; hint=$([[ "$def" == "y" ]] && printf '[Y/n]' || printf '[y/N]')
+  printf '%b' "  ${BOLD}${prompt}${RESET} ${DIM}${hint}${RESET} " >/dev/tty
+  IFS= read -r ans <"$TTY_DEV" || ans=""
+  [[ -z "$ans" ]] && ans="$def"
   [[ "$ans" =~ ^[Yy] ]]
 }
 
