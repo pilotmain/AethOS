@@ -9,6 +9,7 @@ param(
     [switch]$Uninstall,
     [switch]$Onboard,
     [switch]$NoOnboard,
+    [switch]$NoStart,
     [switch]$NonInteractive,
     [switch]$Yes,
     [ValidateSet("preflight", "source", "backend", "frontend", "verify", "setup")]
@@ -71,6 +72,7 @@ Options:
   -Uninstall              Remove the AethOS install from this machine
   -Onboard                (Re)run only the interactive setup wizard
   -NoOnboard              Skip the interactive setup wizard
+  -NoStart                Do not launch AethOS after a successful install
   -NonInteractive         Never prompt; use safe defaults (CI/automation)
   -Yes                    Assume "yes" for confirmations
   -InstallDir PATH        Install location (default: ~/aethos)
@@ -378,10 +380,17 @@ function Invoke-Verify {
         Invoke-Native $aethosCli @("--help")
         if (-not $SkipWeb) {
             if (-not (Test-Path "web\node_modules\.bin\next.cmd")) { throw "Mission Control dependency check failed." }
-            Write-AethOS "Checking Mission Control types..."
-            Push-Location "web"
-            try { Invoke-Native (Get-Command npm).Source @("run", "typecheck") }
-            finally { Pop-Location }
+            if ($Detailed) {
+                Write-AethOS "Checking Mission Control types (this can take a minute)..."
+                Push-Location "web"
+                try { Invoke-Native (Get-Command npm).Source @("run", "typecheck") }
+                finally { Pop-Location }
+            }
+            else {
+                Write-AethOS "Checking the Mission Control toolchain..."
+                Invoke-Native (Get-Command node).Source @("-e", "require('./web/node_modules/next/package.json').version")
+                Write-Note "Full typecheck runs in CI; use -Detailed to run it locally."
+            }
         }
         Write-Ok "Local installation verified"
     }
@@ -786,6 +795,15 @@ try {
     Invoke-Steps
     $script:CurrentStep = "complete"
     Show-Success
+    if (-not $NoStart -and (Test-Interactive) -and (Confirm-AethOS "Start AethOS now?" "y")) {
+        Write-AethOS "Starting AethOS - press Ctrl+C to stop it."
+        Set-Location $script:Root
+        if ($SkipWeb) { & (Join-Path $script:Root "run.ps1") -ApiOnly -ApiPort $ApiPort }
+        else { & (Join-Path $script:Root "run.ps1") -ApiPort $ApiPort -WebPort $WebPort }
+    }
+    else {
+        Write-Note "Start later: cd `"$($script:Root)`"; .\run.ps1"
+    }
 }
 catch {
     Stop-Install $_

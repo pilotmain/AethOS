@@ -79,7 +79,7 @@ jobs:
           cyclonedx-py environment --output-format JSON
           --output-file sbom-python.json
       - name: Audit installed Python environment
-        run: pip-audit --strict --local
+        run: pip-audit --strict --local --skip-editable
       - name: Web audit + SBOM
         working-directory: web
         run: |

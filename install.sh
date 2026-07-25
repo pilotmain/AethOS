@@ -28,6 +28,7 @@ STATE_ROOT=""
 STATE_DIR=""
 LOG_FILE=""
 NO_ONBOARD=0
+NO_START=0
 ASSUME_YES=0
 TTY_DEV=""
 RESTORE_ENV=""
@@ -72,6 +73,7 @@ Options:
   --uninstall            Remove the AethOS install from this machine
   --onboard              (Re)run only the interactive setup wizard
   --no-onboard           Skip the interactive setup wizard
+  --no-start             Do not launch AethOS after a successful install
   --non-interactive      Never prompt; use safe defaults (CI/automation)
   --yes                  Assume "yes" for confirmations (with --reinstall/--uninstall)
   --install-dir PATH     Install location (default: ~/aethos)
@@ -163,6 +165,7 @@ parse_args() {
       --uninstall) MODE="uninstall" ;;
       --onboard) MODE="onboard" ;;
       --no-onboard) NO_ONBOARD=1 ;;
+      --no-start) NO_START=1 ;;
       --non-interactive) NO_ONBOARD=1; ASSUME_YES=0; AETHOS_NONINTERACTIVE=1 ;;
       --yes) ASSUME_YES=1 ;;
       --from) [[ $# -ge 2 ]] || { fail "--from requires a step"; exit 2; }; FROM_STEP="$2"; shift ;;
@@ -487,8 +490,14 @@ step_verify() {
   run_quiet .venv/bin/aethos --help
   if [[ "$SKIP_WEB" != "1" ]]; then
     [[ -x web/node_modules/.bin/next ]] || { fail "Mission Control dependency check failed."; return 1; }
-    say "Checking Mission Control types…"
-    (cd web && run_quiet npm run typecheck)
+    if [[ "$DETAILED" == "1" ]]; then
+      say "Checking Mission Control types (this can take a minute)…"
+      (cd web && run_quiet npm run typecheck)
+    else
+      say "Checking the Mission Control toolchain…"
+      run_quiet node -e 'require("./web/node_modules/next/package.json").version'
+      note "Full typecheck runs in CI; use --detailed to run it locally."
+    fi
   fi
   ok "Local installation verified"
 }
@@ -936,6 +945,29 @@ main() {
   run_steps
   CURRENT_STEP="complete"
   print_success
+  maybe_start
+}
+
+maybe_start() {
+  if [[ "$NO_START" == "1" ]]; then
+    note "Start later: cd ${ROOT} && ./run.sh"
+    return 0
+  fi
+  init_tty
+  if [[ -z "$TTY_DEV" ]]; then
+    note "Start AethOS: cd ${ROOT} && ./run.sh"
+    return 0
+  fi
+  printf '\n'
+  if confirm "Start AethOS now?" y; then
+    say "Starting AethOS — press Ctrl+C to stop it."
+    cd "$ROOT"
+    if [[ "$SKIP_WEB" == "1" ]]; then
+      exec ./run.sh --api-only --api-port "$API_PORT"
+    fi
+    exec ./run.sh --api-port "$API_PORT" --web-port "$WEB_PORT"
+  fi
+  note "Start later: cd ${ROOT} && ./run.sh"
 }
 
 main "$@"
