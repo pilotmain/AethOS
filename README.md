@@ -72,6 +72,16 @@ Windows with `curl.exe`:
 curl.exe -fsSL https://raw.githubusercontent.com/pilotmain/AethOS/main/install.ps1 | powershell.exe -NoProfile -ExecutionPolicy Bypass -Command -
 ```
 
+The install finishes with an **interactive setup wizard** (it works inside the
+one-line curl flow): pick your AI provider — Anthropic, OpenRouter, OpenAI,
+Gemini, Mistral, Groq, xAI, DeepSeek, Together, or a local Ollama/LM Studio
+server — and your key is validated live and written to `.env`, along with
+self-host mode, a generated vault key, and an optional login passphrase. When
+it ends, the first run is ready to use. Re-run it any time with
+`./install.sh --onboard`; already-installed machines get an
+update / reinstall / onboard menu, plus `--update`, `--reinstall`, and
+`--uninstall`.
+
 The installer is idempotent and checkpoints every stage. If a network,
 dependency, or verification step stops, fix the reported cause and continue:
 

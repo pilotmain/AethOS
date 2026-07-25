@@ -3,6 +3,20 @@
 Notable changes to AethOS are recorded here. The project intends to follow
 Semantic Versioning once public versioned releases begin.
 
+## 0.2.1 — 2026-07-24
+
+### Added
+
+- Interactive onboarding in the one-line installer (macOS/Linux/Windows):
+  guided AI-provider setup with live key validation for all ten providers,
+  self-host mode, vault-key generation, optional login passphrase, web
+  research, and Telegram — written to `.env` so the first run is ready to use.
+- Install lifecycle commands: `--update`, `--reinstall` (keeps `.env` on
+  request), `--uninstall`, `--onboard`, `--no-onboard`, `--non-interactive`,
+  and an update/reinstall/onboard menu when an install already exists.
+- Version currency gate in `run.sh`/`run.ps1`: daily release check, update
+  reminders, and a configurable 30-day limit before an update is required.
+
 ## 0.2.0 — 2026-07-24
 
 Initial public release.

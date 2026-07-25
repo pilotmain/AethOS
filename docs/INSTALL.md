@@ -74,7 +74,7 @@ markers, shows the last command output, and prints a recovery command.
 | Re-run from a stage | `./install.sh --from frontend` | `.\install.ps1 -From frontend` |
 | Full command help | `./install.sh --help` | `.\install.ps1 -Help` |
 
-Stages are `preflight`, `source`, `backend`, `frontend`, and `verify`.
+Stages are `preflight`, `source`, `backend`, `frontend`, `verify`, and `setup`.
 Installer state and its detailed log live under `.aethos-installer/` in a local
 checkout, or next to the target directory until the remote clone exists. The
 state contains no credentials.
@@ -90,6 +90,49 @@ curl -fsSL https://raw.githubusercontent.com/pilotmain/AethOS/main/install.sh | 
 ```powershell
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/pilotmain/AethOS/main/install.ps1))) -Resume
 ```
+
+## Interactive setup (onboarding)
+
+The final `setup` stage is an interactive wizard — it also works when the
+installer is streamed through `curl | bash`, because prompts reattach to your
+terminal. It configures, and writes to `.env`:
+
+- single-user self-host mode and an auto-generated credential-vault key;
+- an optional Mission Control login passphrase;
+- one or more AI providers (Anthropic, OpenRouter, OpenAI, Gemini, Mistral,
+  Groq, xAI, DeepSeek, Together, or a local Ollama/LM Studio server) — each
+  key is validated live against the provider with a free metadata call;
+- optional web research (Tavily) and a Telegram bot.
+
+Every answer stays on your machine. When the wizard finishes, `./run.sh`
+starts a fully configured instance. Re-run it any time with
+`./install.sh --onboard` / `.\install.ps1 -Onboard`; skip it with
+`--no-onboard` / `-NoOnboard`. Without a terminal (CI), it is skipped
+automatically and `--non-interactive` / `-NonInteractive` forces that.
+
+## Update, reinstall, uninstall
+
+Re-running the installer on an existing install offers a menu; the direct
+commands are:
+
+| Action | macOS / Linux | Windows |
+|---|---|---|
+| Update in place | `./install.sh --update` | `.\install.ps1 -Update` |
+| Reinstall fresh | `./install.sh --reinstall` | `.\install.ps1 -Reinstall` |
+| Uninstall | `./install.sh --uninstall` | `.\install.ps1 -Uninstall` |
+
+Reinstall offers to keep your `.env` configuration and restores it into the
+fresh install; uninstall offers to save an `.env` backup in your home
+directory first. Both ask for confirmation (pass `--yes` / `-Yes` to skip).
+
+## Version currency
+
+`run.sh` / `run.ps1` check GitHub once a day for a newer release. When one
+exists you get an update reminder, and once an update has been available for
+30 days (configurable with `AETHOS_VERSION_GATE_DAYS`) AethOS refuses to
+start until you run `./install.sh --update` — stale local installs miss
+security and provider fixes. Set `AETHOS_SKIP_UPDATE_CHECK=1` to disable the
+check entirely (for example on air-gapped machines).
 
 ## Common options
 
@@ -110,8 +153,9 @@ reconciled from the project and lock files, and configuration is preserved. If
 the checkout has local changes, the source update is skipped rather than
 overwriting them. Update or stash those changes yourself, then resume.
 
-## Uninstall
+## Manual removal
 
-AethOS deliberately has no destructive uninstall command. Stop `run.sh` or
+Prefer `./install.sh --uninstall` / `.\install.ps1 -Uninstall` (confirmed,
+with an `.env` backup offer). To remove manually instead: stop `run.sh` or
 `run.ps1`, back up `.env` and any required local data, and remove the explicit
 installation and installer-state directories yourself.
