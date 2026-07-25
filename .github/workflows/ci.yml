@@ -17,7 +17,8 @@ jobs:
   python:
     name: Python tests + lint
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # The full suite is ~5,800 tests; a 2-core hosted runner needs the room.
+    timeout-minutes: 55
     env:
       # Headless Linux runners have no OS keyring; vault tests need a backend.
       PYTHON_KEYRING_BACKEND: keyrings.alt.file.PlaintextKeyring
