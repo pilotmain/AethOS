@@ -4,9 +4,16 @@
 param(
     [switch]$Resume,
     [switch]$Status,
-    [ValidateSet("preflight", "source", "backend", "frontend", "verify")]
+    [switch]$Update,
+    [switch]$Reinstall,
+    [switch]$Uninstall,
+    [switch]$Onboard,
+    [switch]$NoOnboard,
+    [switch]$NonInteractive,
+    [switch]$Yes,
+    [ValidateSet("preflight", "source", "backend", "frontend", "verify", "setup")]
     [string]$From,
-    [ValidateSet("preflight", "source", "backend", "frontend", "verify")]
+    [ValidateSet("preflight", "source", "backend", "frontend", "verify", "setup")]
     [string]$HelpStep,
     [string]$InstallDir = $(if ($env:AETHOS_INSTALL_DIR) { $env:AETHOS_INSTALL_DIR } else { Join-Path $HOME "aethos" }),
     [string]$Branch = $(if ($env:AETHOS_BRANCH) { $env:AETHOS_BRANCH } else { "main" }),
@@ -20,13 +27,14 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
 
-$script:AethOSVersion = "0.2.0"
+$script:AethOSVersion = "0.2.1"
 $script:RepoUrl = if ($env:AETHOS_REPO_URL) { $env:AETHOS_REPO_URL } else { "https://github.com/pilotmain/AethOS.git" }
 $script:InstallerUrl = if ($env:AETHOS_INSTALLER_URL) { $env:AETHOS_INSTALLER_URL } else { "https://raw.githubusercontent.com/pilotmain/AethOS/main/install.ps1" }
 $script:MinPython = [version]"3.11"
 $script:MinNode = [version]"20.0"
 $script:RecommendedNode = [version]"24.0"
-$script:Steps = @("preflight", "source", "backend", "frontend", "verify")
+$script:Steps = @("preflight", "source", "backend", "frontend", "verify", "setup")
+$script:RestoreEnv = $null
 $script:CurrentStep = "startup"
 $script:Root = $null
 $script:PythonCommand = $null
@@ -58,6 +66,13 @@ Options:
   -From STEP              Re-run STEP and every step after it
   -Status                 Show prerequisites and saved install progress
   -HelpStep STEP          Explain a step and its recovery actions
+  -Update                 Update an existing install to the latest version
+  -Reinstall              Remove the existing install and install fresh
+  -Uninstall              Remove the AethOS install from this machine
+  -Onboard                (Re)run only the interactive setup wizard
+  -NoOnboard              Skip the interactive setup wizard
+  -NonInteractive         Never prompt; use safe defaults (CI/automation)
+  -Yes                    Assume "yes" for confirmations
   -InstallDir PATH        Install location (default: ~/aethos)
   -Branch NAME            Git branch or tag (default: main)
   -ApiPort PORT           API port (default: 8010)
@@ -66,7 +81,7 @@ Options:
   -Detailed               Show full pip and npm output
   -Help                    Show this help
 
-Steps: preflight, source, backend, frontend, verify
+Steps: preflight, source, backend, frontend, verify, setup
 "@ | Write-Host
 }
 
@@ -92,6 +107,11 @@ function Show-StepHelp([string]$Step) {
         "verify" {
             Write-Host "verify imports the API, exercises the CLI, and checks Mission Control types."
             Write-Host "It does not start services or contact any configured provider."
+        }
+        "setup" {
+            Write-Host "setup is the interactive onboarding wizard: deployment mode, optional login"
+            Write-Host "passphrase, and AI provider keys (validated live), all written to .env."
+            Write-Host "Re-run any time with -Onboard; skip with -NoOnboard (CI skips automatically)."
         }
     }
 }
@@ -196,7 +216,7 @@ function Find-ExistingRoot {
 }
 
 function Invoke-Preflight {
-    Write-Section "1 / 5  Preflight"
+    Write-Section "1 / 6  Preflight"
     $missing = $false
     Write-Ok "Windows detected"
 
@@ -253,7 +273,7 @@ function Invoke-Preflight {
 }
 
 function Invoke-Source {
-    Write-Section "2 / 5  Source"
+    Write-Section "2 / 6  Source"
     $script:Root = Find-ExistingRoot
     if ($script:Root) {
         Write-Ok "Using existing AethOS source: $($script:Root)"
@@ -292,7 +312,7 @@ function Assert-Root {
 }
 
 function Invoke-Backend {
-    Write-Section "3 / 5  Backend and CLI"
+    Write-Section "3 / 6  Backend and CLI"
     Assert-Root
     if (-not (Resolve-Python)) { throw "Python 3.11+ is no longer available." }
     Push-Location $script:Root
@@ -307,8 +327,15 @@ function Invoke-Backend {
         Invoke-Native $venvPython @("-m", "pip", "install", "--upgrade", "pip")
         Invoke-Native $venvPython @("-m", "pip", "install", "-c", "requirements.lock", "-e", ".[cloud,secrets]")
         if (-not (Test-Path ".env")) {
-            Copy-Item ".env.example" ".env"
-            Write-Ok "Created .env from the safe-default template"
+            if ($script:RestoreEnv -and (Test-Path $script:RestoreEnv)) {
+                Copy-Item $script:RestoreEnv ".env"
+                Remove-Item $script:RestoreEnv -Force -ErrorAction SilentlyContinue
+                Write-Ok "Restored your previous .env configuration"
+            }
+            else {
+                Copy-Item ".env.example" ".env"
+                Write-Ok "Created .env from the safe-default template"
+            }
         }
         else { Write-Ok "Preserved existing .env" }
         Write-Ok "API and CLI installed"
@@ -317,7 +344,7 @@ function Invoke-Backend {
 }
 
 function Invoke-Frontend {
-    Write-Section "4 / 5  Mission Control"
+    Write-Section "4 / 6  Mission Control"
     if ($SkipWeb) { Write-Note "Skipped by -SkipWeb"; return }
     Assert-Root
     $webDir = Join-Path $script:Root "web"
@@ -340,7 +367,7 @@ function Invoke-Frontend {
 }
 
 function Invoke-Verify {
-    Write-Section "5 / 5  Verification"
+    Write-Section "5 / 6  Verification"
     Assert-Root
     $venvPython = Join-Path $script:Root ".venv\Scripts\python.exe"
     $aethosCli = Join-Path $script:Root ".venv\Scripts\aethos.exe"
@@ -359,6 +386,287 @@ function Invoke-Verify {
         Write-Ok "Local installation verified"
     }
     finally { Pop-Location }
+}
+
+# -- Interactive setup (onboarding) ------------------------------------------
+
+function Test-Interactive {
+    if ($NonInteractive -or $env:AETHOS_NONINTERACTIVE) { return $false }
+    try { return -not [Console]::IsInputRedirected } catch { return $false }
+}
+
+function Read-AethOSInput([string]$Prompt, [string]$Default = "") {
+    if (-not (Test-Interactive)) { return $Default }
+    $label = if ($Default) { "  $Prompt [$Default]" } else { "  $Prompt" }
+    $answer = Read-Host -Prompt $label
+    if ([string]::IsNullOrWhiteSpace($answer)) { return $Default }
+    return $answer.Trim()
+}
+
+function Read-AethOSSecret([string]$Prompt) {
+    if (-not (Test-Interactive)) { return "" }
+    $secure = Read-Host -Prompt "  $Prompt (hidden)" -AsSecureString
+    $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
+    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+}
+
+function Confirm-AethOS([string]$Prompt, [string]$Default = "y") {
+    if ($Yes) { return $true }
+    if (-not (Test-Interactive)) { return ($Default -eq "y") }
+    $suffix = if ($Default -eq "y") { "[Y/n]" } else { "[y/N]" }
+    $answer = Read-AethOSInput "$Prompt $suffix" $Default
+    return $answer -match "^[Yy]"
+}
+
+function Set-EnvValue([string]$Key, [string]$Value) {
+    $envPath = Join-Path $script:Root ".env"
+    $text = if (Test-Path $envPath) { Get-Content -Raw $envPath } else { "" }
+    $pattern = "(?m)^#?\s*" + [regex]::Escape($Key) + "=.*$"
+    $line = "$Key=$Value"
+    if ($text -match $pattern) {
+        $regex = [regex]::new($pattern)
+        $text = $regex.Replace($text, $line, 1)
+    }
+    else {
+        if ($text -and -not $text.EndsWith("`n")) { $text += "`n" }
+        $text += "$line`n"
+    }
+    Set-Content -Path $envPath -Value $text -Encoding UTF8 -NoNewline
+}
+
+function Test-EnvHas([string]$Key) {
+    $envPath = Join-Path $script:Root ".env"
+    if (-not (Test-Path $envPath)) { return $false }
+    return [bool](Select-String -Path $envPath -Pattern ("^" + [regex]::Escape($Key) + "=.+") -Quiet)
+}
+
+$script:Providers = @(
+    @{ Id = "anthropic";  Label = "Anthropic (Claude)";                Model = "claude-sonnet-4-6";    Url = "https://console.anthropic.com/settings/keys"; Probe = "https://api.anthropic.com/v1/models" },
+    @{ Id = "openrouter"; Label = "OpenRouter (one key, many models)"; Model = "openrouter/auto";      Url = "https://openrouter.ai/settings/keys";         Probe = "https://openrouter.ai/api/v1/key" },
+    @{ Id = "openai";     Label = "OpenAI";                            Model = "gpt-4o";               Url = "https://platform.openai.com/api-keys";        Probe = "https://api.openai.com/v1/models" },
+    @{ Id = "gemini";     Label = "Google Gemini";                     Model = "gemini-2.0-flash";     Url = "https://aistudio.google.com/app/apikey";      Probe = "https://generativelanguage.googleapis.com/v1beta/openai/models" },
+    @{ Id = "mistral";    Label = "Mistral";                           Model = "mistral-large-latest"; Url = "https://console.mistral.ai/api-keys";         Probe = "https://api.mistral.ai/v1/models" },
+    @{ Id = "groq";       Label = "Groq";                              Model = "llama-3.3-70b-versatile"; Url = "https://console.groq.com/keys";            Probe = "https://api.groq.com/openai/v1/models" },
+    @{ Id = "xai";        Label = "xAI (Grok)";                        Model = "grok-2-latest";        Url = "https://console.x.ai";                        Probe = "https://api.x.ai/v1/models" },
+    @{ Id = "deepseek";   Label = "DeepSeek";                          Model = "deepseek-chat";        Url = "https://platform.deepseek.com/api_keys";      Probe = "https://api.deepseek.com/models" },
+    @{ Id = "together";   Label = "Together AI";                       Model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"; Url = "https://api.together.ai/settings/api-keys"; Probe = "https://api.together.xyz/v1/models" },
+    @{ Id = "local";      Label = "Local (Ollama / LM Studio / OpenAI-compatible)"; Model = ""; Url = ""; Probe = "" }
+)
+
+function Test-ProviderKey([hashtable]$Provider, [string]$Key, [string]$BaseUrl = "") {
+    # 0 = valid, 1 = rejected, 2 = unknown/unreachable
+    $probe = if ($Provider.Id -eq "local") { "$($BaseUrl.TrimEnd('/'))/models" } else { $Provider.Probe }
+    if (-not $probe) { return 2 }
+    $headers = @{}
+    if ($Provider.Id -eq "anthropic") { $headers = @{ "x-api-key" = $Key; "anthropic-version" = "2023-06-01" } }
+    elseif ($Provider.Id -ne "local") { $headers = @{ "Authorization" = "Bearer $Key" } }
+    try {
+        $response = Invoke-WebRequest -Uri $probe -Headers $headers -Method GET -TimeoutSec 12 -UseBasicParsing
+        if ($response.StatusCode -eq 200) { return 0 }
+        return 1
+    }
+    catch [System.Net.WebException] {
+        if ($_.Exception.Response) { return 1 }
+        return 2
+    }
+    catch { return 2 }
+}
+
+function Invoke-OneProvider {
+    $script:ConfiguredProvider = $null
+    Write-Host ""
+    Write-AethOS "Choose an AI provider - you can add more later or from Mission Control."
+    for ($i = 0; $i -lt $script:Providers.Count; $i++) {
+        Write-Host ("  {0,2}  {1}" -f ($i + 1), $script:Providers[$i].Label)
+    }
+    Write-Host "   s  Skip for now"
+    $choice = Read-AethOSInput "Provider" "1"
+    if ($choice -match "^[Ss]") { return $false }
+    $index = 0
+    if (-not [int]::TryParse($choice, [ref]$index) -or $index -lt 1 -or $index -gt $script:Providers.Count) {
+        Write-Warn "Invalid choice: $choice"
+        return $false
+    }
+    $provider = $script:Providers[$index - 1]
+    $upper = $provider.Id.ToUpperInvariant()
+
+    if ($provider.Id -eq "local") {
+        $base = Read-AethOSInput "OpenAI-compatible base URL" "http://localhost:11434/v1"
+        $model = Read-AethOSInput "Model name (as served locally, e.g. llama3.2)" ""
+        if ((Test-ProviderKey $provider "" $base) -eq 0) { Write-Ok "Local model server responded at $base" }
+        else { Write-Warn "No response from $base - saved anyway; start your local server before .\run.ps1" }
+        Set-EnvValue "LOCAL_LLM_BASE_URL" $base
+        if ($model) { Set-EnvValue "LOCAL_LLM_MODELS" $model }
+        $script:ConfiguredProvider = "local"
+        return $true
+    }
+
+    if ($provider.Url) { Write-Note "Get a key: $($provider.Url)" }
+    $key = Read-AethOSSecret "$($provider.Label) API key"
+    if (-not $key) { Write-Warn "No key entered - skipped $($provider.Label)."; return $false }
+    Write-AethOS "Validating the key with $($provider.Label) (a free metadata call - no tokens are spent)..."
+    $result = Test-ProviderKey $provider $key
+    if ($result -eq 0) { Write-Ok "Key verified with $($provider.Label)" }
+    elseif ($result -eq 1) {
+        Write-Warn "$($provider.Label) rejected this key."
+        if (-not (Confirm-AethOS "Save it anyway?" "n")) { return $false }
+    }
+    else { Write-Warn "Could not reach $($provider.Label) to validate (offline?). Saving unverified." }
+    Set-EnvValue "${upper}_API_KEY" $key
+    $model = Read-AethOSInput "Default model" $provider.Model
+    if ($model) { Set-EnvValue "${upper}_MODEL" $model }
+    $script:ConfiguredProvider = $provider.Id
+    return $true
+}
+
+function Invoke-Setup {
+    Write-Section "6 / 6  Setup"
+    Assert-Root
+    Push-Location $script:Root
+    try {
+        if ($NoOnboard) {
+            Write-Note "Onboarding skipped. Run it any time: .\install.ps1 -Onboard"
+            return
+        }
+        $envPath = Join-Path $script:Root ".env"
+        if (-not $Onboard -and (Test-Path $envPath) -and (Select-String -Path $envPath -Pattern "^USE_REAL_LLM=true" -Quiet)) {
+            Write-Ok "AI provider already configured in .env - onboarding not needed"
+            Write-Note "Reconfigure any time: .\install.ps1 -Onboard"
+            return
+        }
+        if (-not (Test-Interactive)) {
+            Write-Warn "No interactive terminal detected - skipping guided setup."
+            Write-Note "Finish setup any time: cd `"$($script:Root)`"; .\install.ps1 -Onboard"
+            return
+        }
+
+        Write-AethOS "Interactive setup - every answer is written to $($script:Root)\.env and stays on this machine."
+
+        if (Confirm-AethOS "Single-user self-host mode (recommended for a personal install)?" "y") {
+            Set-EnvValue "SELF_HOST" "true"
+            Write-Ok "Self-host mode enabled - no signup wall, you own the instance"
+        }
+
+        if (-not (Test-EnvHas "AETHOS_VAULT_KEY")) {
+            $venvPython = Join-Path $script:Root ".venv\Scripts\python.exe"
+            try {
+                $vaultKey = (& $venvPython -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>$null)
+                if ($vaultKey) {
+                    Set-EnvValue "AETHOS_VAULT_KEY" $vaultKey.Trim()
+                    Write-Ok "Generated the credential-vault encryption key"
+                }
+            }
+            catch { Write-Warn "Could not generate a vault key automatically; set AETHOS_VAULT_KEY in .env later." }
+        }
+
+        if (Confirm-AethOS "Protect Mission Control with a login passphrase?" "n") {
+            $pass = Read-AethOSSecret "Choose a passphrase"
+            if ($pass) {
+                Set-EnvValue "AETHOS_LOGIN_ENABLED" "true"
+                Set-EnvValue "AETHOS_LOGIN_PASSPHRASE" $pass
+                Write-Ok "Login passphrase set"
+            }
+        }
+
+        $firstProvider = $null
+        $any = $false
+        while ($true) {
+            if (Invoke-OneProvider) {
+                $any = $true
+                if (-not $firstProvider) { $firstProvider = $script:ConfiguredProvider }
+                if (-not (Confirm-AethOS "Add another provider?" "n")) { break }
+            }
+            else { break }
+        }
+        if ($any) {
+            Set-EnvValue "USE_REAL_LLM" "true"
+            if ($firstProvider -ne "local") { Set-EnvValue "ACTIVE_PROVIDER" $firstProvider }
+            Write-Ok "AI reasoning enabled (ACTIVE_PROVIDER=$firstProvider)"
+        }
+        else {
+            Write-Warn "No AI provider configured - AethOS starts in limited mode."
+            Write-Note "Add one later: .\install.ps1 -Onboard, or Mission Control > Connections."
+        }
+
+        if (Confirm-AethOS "Enable web research (needs a Tavily API key)?" "n") {
+            $searchKey = Read-AethOSSecret "Tavily API key (tvly-...)"
+            if ($searchKey) {
+                Set-EnvValue "WEB_RESEARCH_ENABLED" "true"
+                Set-EnvValue "WEB_SEARCH_PROVIDER" "tavily"
+                Set-EnvValue "WEB_SEARCH_API_KEY" $searchKey
+                Write-Ok "Web research enabled"
+            }
+        }
+
+        if (Confirm-AethOS "Connect a Telegram bot?" "n") {
+            $tg = Read-AethOSSecret "Telegram bot token (from @BotFather)"
+            if ($tg) {
+                Set-EnvValue "TELEGRAM_ENABLED" "true"
+                Set-EnvValue "TELEGRAM_BOT_TOKEN" $tg
+                Write-Ok "Telegram channel enabled"
+            }
+        }
+
+        Write-Ok "Setup complete - configuration saved to .env"
+    }
+    finally { Pop-Location }
+}
+
+function Test-AethOSRoot([string]$Path) {
+    if (-not $Path) { return $false }
+    $project = Join-Path $Path "pyproject.toml"
+    return (Test-Path $project) -and (Select-String -Path $project -Pattern '^name\s*=\s*"aethos"' -Quiet)
+}
+
+function Invoke-Uninstall {
+    $target = Find-ExistingRoot
+    if (-not $target) { $target = [IO.Path]::GetFullPath($InstallDir) }
+    if (-not (Test-AethOSRoot $target)) { Write-Fail "No AethOS install found at $target."; exit 2 }
+    Show-Banner
+    Write-Warn "This removes the AethOS install at $target (source, venv, dependencies, installer state)."
+    $envPath = Join-Path $target ".env"
+    if (Test-Path $envPath) {
+        $backup = Join-Path $HOME ("aethos-env-backup-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+        if (Confirm-AethOS "Save a copy of your .env configuration to $backup first?" "y") {
+            Copy-Item $envPath $backup
+            Write-Ok "Saved $backup"
+        }
+    }
+    if (-not (Confirm-AethOS "Permanently remove $target?" "n")) {
+        Write-AethOS "Uninstall cancelled - nothing was removed."
+        exit 0
+    }
+    Set-Location $HOME
+    Remove-Item -Recurse -Force $target -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "$target.installer" -ErrorAction SilentlyContinue
+    Write-Ok "AethOS removed from $target."
+    Write-Note "Reinstall any time: irm $($script:InstallerUrl) | iex"
+}
+
+function Invoke-ReinstallPrep {
+    $target = Find-ExistingRoot
+    if (-not $target) { $target = [IO.Path]::GetFullPath($InstallDir) }
+    if (-not (Test-AethOSRoot $target)) { Write-Fail "No AethOS install found at $target - run a normal install instead."; exit 2 }
+    Write-Warn "Reinstall removes $target and installs the latest version fresh."
+    $envPath = Join-Path $target ".env"
+    if (Test-Path $envPath) {
+        if (Confirm-AethOS "Keep your current .env configuration for the new install?" "y") {
+            $script:RestoreEnv = Join-Path ([IO.Path]::GetTempPath()) ("aethos-env-" + [Guid]::NewGuid().ToString("N"))
+            Copy-Item $envPath $script:RestoreEnv
+            Write-Ok "Your .env will be restored after the reinstall"
+        }
+    }
+    if (-not (Confirm-AethOS "Remove $target and reinstall now?" "n")) {
+        Write-AethOS "Reinstall cancelled - nothing was removed."
+        exit 0
+    }
+    Set-Location $HOME
+    Remove-Item -Recurse -Force $target -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "$target.installer" -ErrorAction SilentlyContinue
+    $script:Root = $null
+    Initialize-State
+    Write-Ok "Old install removed - installing fresh"
 }
 
 function Invoke-Steps {
@@ -381,6 +689,7 @@ function Invoke-Steps {
             "backend" { Invoke-Backend }
             "frontend" { Invoke-Frontend }
             "verify" { Invoke-Verify }
+            "setup" { Invoke-Setup }
         }
         Set-StepDone $step
     }
@@ -414,9 +723,19 @@ function Show-Success {
     Write-Host "  API health        http://127.0.0.1:$ApiPort/api/v1/health"
     Write-Host "  Doctor            .\.venv\Scripts\aethos.exe doctor"
     Write-Host ""
-    Write-Host "  AI provider       Set USE_REAL_LLM=true and at least one key in `"$($script:Root)\.env`""
-    Write-Note "Supported: Anthropic / OpenRouter / OpenAI / Gemini / Mistral / Groq / xAI / DeepSeek / Together / local (Ollama, LM Studio)"
+    $envPath = Join-Path $script:Root ".env"
+    if ((Test-Path $envPath) -and (Select-String -Path $envPath -Pattern "^USE_REAL_LLM=true" -Quiet)) {
+        $active = (Select-String -Path $envPath -Pattern "^ACTIVE_PROVIDER=(.+)$" | Select-Object -First 1).Matches.Groups[1].Value
+        Write-Host "  AI provider       Configured ($active) - manage more in Mission Control > Connections"
+    }
+    else {
+        Write-Host "  AI provider       Not configured yet - run: .\install.ps1 -Onboard"
+        Write-Note "Supported: Anthropic / OpenRouter / OpenAI / Gemini / Mistral / Groq / xAI / DeepSeek / Together / local (Ollama, LM Studio)"
+    }
     Write-Host ""
+    Write-Note "Update:           .\install.ps1 -Update"
+    Write-Note "Reinstall fresh:  .\install.ps1 -Reinstall     Uninstall: .\install.ps1 -Uninstall"
+    Write-Note "Setup wizard:     .\install.ps1 -Onboard"
     Write-Note "Installer status: .\install.ps1 -Status"
     Write-Note "Step help:        .\install.ps1 -HelpStep STEP"
     Write-Note "Detailed log:     $($script:LogFile)"
@@ -427,9 +746,42 @@ if ($Help) { Show-Usage; exit 0 }
 if ($HelpStep) { Show-StepHelp $HelpStep; exit 0 }
 Initialize-State
 if ($Status) { Show-Status; exit 0 }
+if ($Uninstall) { Invoke-Uninstall; exit 0 }
+
+# Existing install: offer update / reinstall / onboarding instead of a blind re-run.
+if (-not ($Update -or $Reinstall -or $Onboard -or $Resume -or $From)) {
+    $existing = Find-ExistingRoot
+    if ($existing -and (Test-Path (Join-Path $existing ".venv")) -and (Test-Interactive)) {
+        Write-AethOS "AethOS is already installed at $existing."
+        Write-Host "  U  Update to the latest version (default)"
+        Write-Host "  R  Remove it and reinstall fresh"
+        Write-Host "  O  Run only the setup wizard (providers, passphrase)"
+        Write-Host "  Q  Quit without changing anything"
+        $choice = Read-AethOSInput "What would you like to do?" "U"
+        switch -Regex ($choice) {
+            "^[Rr]" { $Reinstall = $true }
+            "^[Oo]" { $Onboard = $true }
+            "^[Qq]" { Write-AethOS "No changes made."; exit 0 }
+            default { $Update = $true }
+        }
+    }
+}
 
 try {
+    if ($Onboard) {
+        $script:Root = Find-ExistingRoot
+        if (-not (Test-AethOSRoot $script:Root)) { Write-Fail "No existing install found - run the installer first."; exit 2 }
+        Show-Banner
+        $script:CurrentStep = "setup"
+        Invoke-Setup
+        exit 0
+    }
     Show-Banner
+    if ($Reinstall) { Invoke-ReinstallPrep }
+    elseif ($Update) {
+        Get-ChildItem -Path $script:StateDir -Filter "*.done" -ErrorAction SilentlyContinue | Remove-Item -Force
+        Write-AethOS "Updating AethOS to the latest '$Branch'..."
+    }
     Write-Note "Progress is checkpointed; a failed run can continue with -Resume."
     Invoke-Steps
     $script:CurrentStep = "complete"

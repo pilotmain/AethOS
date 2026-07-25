@@ -61,6 +61,61 @@ if [[ "$START_WEB" == "1" ]]; then
   [[ -d "${ROOT}/web/node_modules" ]] || { log "Mission Control dependencies missing. Run ./install.sh --from frontend."; exit 1; }
 fi
 
+# ── Version gate ─────────────────────────────────────────────────────────────
+# Warns when a newer release exists; blocks startup once an update has been
+# available for AETHOS_VERSION_GATE_DAYS (default 30). ./install.sh --update fixes it.
+version_lt() { # version_lt A B → 0 when A < B
+  [[ "$1" == "$2" ]] && return 1
+  [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" == "$1" ]]
+}
+
+check_updates() {
+  [[ "${AETHOS_SKIP_UPDATE_CHECK:-0}" == "1" ]] && return 0
+  local current latest="" cached_at=0 first_seen=0 now days gate_days cache
+  current="$(cat "${ROOT}/VERSION" 2>/dev/null || printf '0.0.0')"
+  gate_days="${AETHOS_VERSION_GATE_DAYS:-30}"
+  cache="${ROOT}/.aethos-installer/update-check"
+  mkdir -p "${ROOT}/.aethos-installer"
+  now="$(date +%s)"
+  if [[ -f "$cache" ]]; then
+    latest="$(grep -m1 '^latest=' "$cache" 2>/dev/null | cut -d= -f2 || true)"
+    cached_at="$(grep -m1 '^checked_at=' "$cache" 2>/dev/null | cut -d= -f2 || true)"
+    first_seen="$(grep -m1 '^first_seen=' "$cache" 2>/dev/null | cut -d= -f2 || true)"
+  fi
+  [[ "$cached_at" =~ ^[0-9]+$ ]] || cached_at=0
+  [[ "$first_seen" =~ ^[0-9]+$ ]] || first_seen=0
+  if (( now - cached_at > 86400 )) && command -v curl >/dev/null 2>&1; then
+    local fetched
+    fetched="$(curl -m 6 -fsSL https://api.github.com/repos/pilotmain/AethOS/releases/latest 2>/dev/null \
+      | grep -m1 '"tag_name"' | sed -E 's/.*"v?([0-9][0-9.]*)".*/\1/' || true)"
+    if [[ "$fetched" =~ ^[0-9]+\.[0-9]+ ]]; then
+      latest="$fetched"
+      cached_at="$now"
+    fi
+  fi
+  [[ -n "$latest" ]] || return 0
+  if version_lt "$current" "$latest"; then
+    (( first_seen == 0 )) && first_seen="$now"
+    days=$(( (now - first_seen) / 86400 ))
+    printf 'latest=%s\nchecked_at=%s\nfirst_seen=%s\n' "$latest" "$cached_at" "$first_seen" >"$cache"
+    if (( days >= gate_days )); then
+      printf '%b\n' "${BOLD}[AethOS] Update required.${RESET}" >&2
+      printf '%s\n' "         Version ${current} is installed; ${latest} has been available for ${days} days" >&2
+      printf '%s\n' "         (limit: ${gate_days} days). To keep local installs current and safe, AethOS" >&2
+      printf '%s\n' "         will not start until it is updated:" >&2
+      printf '%s\n' "             cd ${ROOT} && ./install.sh --update" >&2
+      printf '%s\n' "         Broken install? Reinstall fresh (your .env can be kept):" >&2
+      printf '%s\n' "             ./install.sh --reinstall" >&2
+      exit 1
+    fi
+    log "Update available: v${current} → v${latest}. Run: ./install.sh --update ($(( gate_days - days )) days before updating is required)"
+  else
+    printf 'latest=%s\nchecked_at=%s\nfirst_seen=0\n' "$latest" "$cached_at" >"$cache"
+  fi
+}
+
+check_updates
+
 cleanup() {
   log "Shutting down…"
   [[ -n "$API_PID" ]] && kill "$API_PID" 2>/dev/null || true

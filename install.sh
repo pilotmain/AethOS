@@ -3,7 +3,7 @@
 # AethOS installer for macOS and Linux.
 set -Eeuo pipefail
 
-AETHOS_VERSION="0.2.0"
+AETHOS_VERSION="0.2.1"
 REPO_URL="${AETHOS_REPO_URL:-https://github.com/pilotmain/AethOS.git}"
 INSTALLER_URL="${AETHOS_INSTALLER_URL:-https://raw.githubusercontent.com/pilotmain/AethOS/main/install.sh}"
 INSTALL_DIR="${AETHOS_INSTALL_DIR:-${HOME}/aethos}"
@@ -27,7 +27,11 @@ PYTHON_BIN=""
 STATE_ROOT=""
 STATE_DIR=""
 LOG_FILE=""
-STEPS=(preflight source backend frontend verify)
+NO_ONBOARD=0
+ASSUME_YES=0
+TTY_DEV=""
+RESTORE_ENV=""
+STEPS=(preflight source backend frontend verify setup)
 
 PRIMARY='\033[38;5;45m'
 SUCCESS='\033[38;5;42m'
@@ -62,6 +66,14 @@ Options:
   --from STEP            Re-run STEP and every step after it
   --status               Show prerequisites and saved install progress
   --help-step STEP       Explain a step and its recovery actions
+  --update               Update an existing install to the latest version
+  --reinstall            Remove the existing install and install fresh
+                         (offers to keep your .env configuration)
+  --uninstall            Remove the AethOS install from this machine
+  --onboard              (Re)run only the interactive setup wizard
+  --no-onboard           Skip the interactive setup wizard
+  --non-interactive      Never prompt; use safe defaults (CI/automation)
+  --yes                  Assume "yes" for confirmations (with --reinstall/--uninstall)
   --install-dir PATH     Install location (default: ~/aethos)
   --branch NAME          Git branch or tag (default: main)
   --api-port PORT        API port (default: 8010)
@@ -70,7 +82,7 @@ Options:
   --detailed             Show full pip and npm output
   -h, --help             Show this help
 
-Steps: preflight, source, backend, frontend, verify
+Steps: preflight, source, backend, frontend, verify, setup
 
 Environment equivalents:
   AETHOS_INSTALL_DIR, AETHOS_REPO_URL, AETHOS_BRANCH,
@@ -120,6 +132,15 @@ Mission Control toolchain. It does not start services or contact configured
 providers. Afterward, run ./run.sh and then `aethos doctor` for live probes.
 EOF
       ;;
+    setup)
+      cat <<'EOF'
+setup is the interactive onboarding wizard. It asks for your deployment mode,
+an optional login passphrase, and your AI provider keys (validated live against
+the provider), then writes everything to .env so AethOS is ready on first run.
+Every answer stays on your machine. Re-run any time: ./install.sh --onboard.
+Skip it with --no-onboard; in CI it is skipped automatically (no terminal).
+EOF
+      ;;
     *) fail "Unknown step '$1'. Valid steps: ${STEPS[*]}"; return 2 ;;
   esac
 }
@@ -137,6 +158,13 @@ parse_args() {
     case "$1" in
       --resume) RESUME=1 ;;
       --status) MODE="status" ;;
+      --update) MODE="update" ;;
+      --reinstall) MODE="reinstall" ;;
+      --uninstall) MODE="uninstall" ;;
+      --onboard) MODE="onboard" ;;
+      --no-onboard) NO_ONBOARD=1 ;;
+      --non-interactive) NO_ONBOARD=1; ASSUME_YES=0; AETHOS_NONINTERACTIVE=1 ;;
+      --yes) ASSUME_YES=1 ;;
       --from) [[ $# -ge 2 ]] || { fail "--from requires a step"; exit 2; }; FROM_STEP="$2"; shift ;;
       --help-step) [[ $# -ge 2 ]] || { fail "--help-step requires a step"; exit 2; }; HELP_STEP="$2"; shift ;;
       --install-dir) [[ $# -ge 2 ]] || { fail "--install-dir requires a path"; exit 2; }; INSTALL_DIR="$2"; shift ;;
@@ -295,7 +323,7 @@ prerequisite_help() {
 }
 
 step_preflight() {
-  section "1 / 5  Preflight"
+  section "1 / 6  Preflight"
   local os missing=0 node_version available_kb existing_root
   os="$(uname -s 2>/dev/null || true)"
   case "$os" in
@@ -361,7 +389,7 @@ step_preflight() {
 }
 
 step_source() {
-  section "2 / 5  Source"
+  section "2 / 6  Source"
   ROOT="$(resolve_existing_root)"
   if [[ -n "$ROOT" ]]; then
     ok "Using existing AethOS source: ${ROOT}"
@@ -400,7 +428,7 @@ ensure_root() {
 }
 
 step_backend() {
-  section "3 / 5  Backend and CLI"
+  section "3 / 6  Backend and CLI"
   ensure_root
   resolve_python || { fail "Python ${MIN_PYTHON}+ is no longer available."; return 2; }
   cd "$ROOT"
@@ -414,8 +442,14 @@ step_backend() {
   run_quiet .venv/bin/python -m pip install --upgrade pip
   run_quiet .venv/bin/python -m pip install -c requirements.lock -e '.[cloud,secrets]'
   if [[ ! -f .env ]]; then
-    cp .env.example .env
-    ok "Created .env from the safe-default template"
+    if [[ -n "$RESTORE_ENV" && -f "$RESTORE_ENV" ]]; then
+      cp "$RESTORE_ENV" .env
+      rm -f "$RESTORE_ENV"
+      ok "Restored your previous .env configuration"
+    else
+      cp .env.example .env
+      ok "Created .env from the safe-default template"
+    fi
   else
     ok "Preserved existing .env"
   fi
@@ -423,7 +457,7 @@ step_backend() {
 }
 
 step_frontend() {
-  section "4 / 5  Mission Control"
+  section "4 / 6  Mission Control"
   if [[ "$SKIP_WEB" == "1" ]]; then
     note "Skipped by --skip-web"
     return
@@ -445,7 +479,7 @@ step_frontend() {
 }
 
 step_verify() {
-  section "5 / 5  Verification"
+  section "5 / 6  Verification"
   ensure_root
   cd "$ROOT"
   say "Checking the installed API and CLI…"
@@ -457,6 +491,257 @@ step_verify() {
     (cd web && run_quiet npm run typecheck)
   fi
   ok "Local installation verified"
+}
+
+# ── Interactive setup (onboarding) ──────────────────────────────────────────
+
+init_tty() {
+  TTY_DEV=""
+  [[ -n "${AETHOS_NONINTERACTIVE:-}" ]] && return 0
+  if [[ -t 0 ]]; then
+    TTY_DEV="/dev/stdin"
+  elif [[ -r /dev/tty && -w /dev/tty ]] && (: </dev/tty) 2>/dev/null; then
+    TTY_DEV="/dev/tty"   # piped via curl | bash — reattach prompts to the terminal
+  fi
+}
+
+ask() { # ask VAR "Prompt" "default"
+  local __var="$1" prompt="$2" def="${3:-}" ans=""
+  if [[ -z "$TTY_DEV" ]]; then printf -v "$__var" '%s' "$def"; return 0; fi
+  if [[ -n "$def" ]]; then
+    printf '%b' "  ${BOLD}${prompt}${RESET} ${DIM}[${def}]${RESET} " >/dev/tty
+  else
+    printf '%b' "  ${BOLD}${prompt}${RESET} " >/dev/tty
+  fi
+  IFS= read -r ans <"$TTY_DEV" || ans=""
+  [[ -z "$ans" ]] && ans="$def"
+  printf -v "$__var" '%s' "$ans"
+}
+
+ask_secret() { # ask_secret VAR "Prompt" — input hidden, never echoed or logged
+  local __var="$1" prompt="$2" ans=""
+  if [[ -z "$TTY_DEV" ]]; then printf -v "$__var" '%s' ""; return 0; fi
+  printf '%b' "  ${BOLD}${prompt}${RESET} ${DIM}(hidden)${RESET} " >/dev/tty
+  stty -echo <"$TTY_DEV" 2>/dev/null || true
+  IFS= read -r ans <"$TTY_DEV" || ans=""
+  stty echo <"$TTY_DEV" 2>/dev/null || true
+  printf '\n' >/dev/tty
+  printf -v "$__var" '%s' "$ans"
+}
+
+confirm() { # confirm "Prompt" y|n  → 0 when the answer is yes
+  local prompt="$1" def="${2:-y}" ans=""
+  if [[ "$ASSUME_YES" == "1" ]]; then return 0; fi
+  if [[ -z "$TTY_DEV" ]]; then [[ "$def" == "y" ]]; return; fi
+  if [[ "$def" == "y" ]]; then ask ans "$prompt [Y/n]" "y"; else ask ans "$prompt [y/N]" "n"; fi
+  [[ "$ans" =~ ^[Yy] ]]
+}
+
+set_env() { # set_env KEY VALUE — replace (or uncomment) the first match, else append
+  ENV_KEY="$1" ENV_VALUE="$2" .venv/bin/python - <<'PY'
+import os, pathlib, re
+key, value = os.environ["ENV_KEY"], os.environ["ENV_VALUE"]
+p = pathlib.Path(".env")
+text = p.read_text() if p.exists() else ""
+pattern = re.compile(rf"^#?\s*{re.escape(key)}=.*$", re.M)
+line = f"{key}={value}"
+if pattern.search(text):
+    text = pattern.sub(line, text, count=1)
+else:
+    if text and not text.endswith("\n"):
+        text += "\n"
+    text += line + "\n"
+p.write_text(text)
+PY
+}
+
+env_has() { grep -Eq "^$1=.+" .env 2>/dev/null; }
+
+PROVIDERS=(anthropic openrouter openai gemini mistral groq xai deepseek together local)
+
+provider_info() { # provider_info ID FIELD(label|key_var|model_var|model|url)
+  local id="$1" field="$2" label key_var model_var model url
+  case "$id" in
+    anthropic)  label="Anthropic (Claude)";       model="claude-sonnet-4-6";    url="https://console.anthropic.com/settings/keys" ;;
+    openrouter) label="OpenRouter (one key, many models)"; model="openrouter/auto"; url="https://openrouter.ai/settings/keys" ;;
+    openai)     label="OpenAI";                   model="gpt-4o";               url="https://platform.openai.com/api-keys" ;;
+    gemini)     label="Google Gemini";            model="gemini-2.0-flash";     url="https://aistudio.google.com/app/apikey" ;;
+    mistral)    label="Mistral";                  model="mistral-large-latest"; url="https://console.mistral.ai/api-keys" ;;
+    groq)       label="Groq";                     model="llama-3.3-70b-versatile"; url="https://console.groq.com/keys" ;;
+    xai)        label="xAI (Grok)";               model="grok-2-latest";        url="https://console.x.ai" ;;
+    deepseek)   label="DeepSeek";                 model="deepseek-chat";        url="https://platform.deepseek.com/api_keys" ;;
+    together)   label="Together AI";              model="meta-llama/Llama-3.3-70B-Instruct-Turbo"; url="https://api.together.ai/settings/api-keys" ;;
+    local)      label="Local (Ollama / LM Studio / OpenAI-compatible)"; model=""; url="" ;;
+  esac
+  key_var="$(printf '%s' "$id" | tr '[:lower:]' '[:upper:]')_API_KEY"
+  model_var="$(printf '%s' "$id" | tr '[:lower:]' '[:upper:]')_MODEL"
+  case "$field" in
+    label) printf '%s' "$label" ;;
+    key_var) printf '%s' "$key_var" ;;
+    model_var) printf '%s' "$model_var" ;;
+    model) printf '%s' "$model" ;;
+    url) printf '%s' "$url" ;;
+  esac
+}
+
+validate_provider_key() { # validate_provider_key ID KEY [BASE_URL] → 0 valid, 1 invalid, 2 unknown
+  local id="$1" key="$2" base="${3:-}" code=""
+  command -v curl >/dev/null 2>&1 || return 2
+  case "$id" in
+    anthropic)  code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://api.anthropic.com/v1/models -H "x-api-key: ${key}" -H 'anthropic-version: 2023-06-01' 2>/dev/null || true)" ;;
+    openrouter) code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://openrouter.ai/api/v1/key -H "Authorization: Bearer ${key}" 2>/dev/null || true)" ;;
+    openai)     code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://api.openai.com/v1/models -H "Authorization: Bearer ${key}" 2>/dev/null || true)" ;;
+    gemini)     code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://generativelanguage.googleapis.com/v1beta/openai/models -H "Authorization: Bearer ${key}" 2>/dev/null || true)" ;;
+    mistral)    code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://api.mistral.ai/v1/models -H "Authorization: Bearer ${key}" 2>/dev/null || true)" ;;
+    groq)       code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://api.groq.com/openai/v1/models -H "Authorization: Bearer ${key}" 2>/dev/null || true)" ;;
+    xai)        code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://api.x.ai/v1/models -H "Authorization: Bearer ${key}" 2>/dev/null || true)" ;;
+    deepseek)   code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://api.deepseek.com/models -H "Authorization: Bearer ${key}" 2>/dev/null || true)" ;;
+    together)   code="$(curl -sS -o /dev/null -w '%{http_code}' -m 12 https://api.together.xyz/v1/models -H "Authorization: Bearer ${key}" 2>/dev/null || true)" ;;
+    local)      code="$(curl -sS -o /dev/null -w '%{http_code}' -m 6 "${base%/}/models" 2>/dev/null || true)" ;;
+    *) return 2 ;;
+  esac
+  [[ "$code" == "200" ]] && return 0
+  [[ -z "$code" || "$code" == "000" ]] && return 2
+  return 1
+}
+
+configure_one_provider() { # → sets CONFIGURED_PROVIDER on success
+  CONFIGURED_PROVIDER=""
+  local i choice id label key_var model_var model url key base rc
+  printf '\n' >/dev/tty
+  say "Choose an AI provider — you can add more later or from Mission Control."
+  for i in "${!PROVIDERS[@]}"; do
+    id="${PROVIDERS[$i]}"
+    printf '  %b%2d%b  %s\n' "$BOLD" "$((i + 1))" "$RESET" "$(provider_info "$id" label)" >/dev/tty
+  done
+  printf '  %b s%b  Skip for now\n' "$BOLD" "$RESET" >/dev/tty
+  ask choice "Provider" "1"
+  [[ "$choice" =~ ^[Ss] ]] && return 1
+  [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#PROVIDERS[@]} )) || { warn "Invalid choice: ${choice}"; return 1; }
+  id="${PROVIDERS[$((choice - 1))]}"
+  label="$(provider_info "$id" label)"; key_var="$(provider_info "$id" key_var)"
+  model_var="$(provider_info "$id" model_var)"; model="$(provider_info "$id" model)"
+  url="$(provider_info "$id" url)"
+
+  if [[ "$id" == "local" ]]; then
+    ask base "OpenAI-compatible base URL" "http://localhost:11434/v1"
+    ask model "Model name (as served locally, e.g. llama3.2)" ""
+    if validate_provider_key local "" "$base"; then ok "Local model server responded at ${base}"
+    else warn "No response from ${base} — saved anyway; start your local server before ./run.sh"; fi
+    set_env LOCAL_LLM_BASE_URL "$base"
+    [[ -n "$model" ]] && set_env LOCAL_LLM_MODELS "$model"
+    CONFIGURED_PROVIDER="local"
+    return 0
+  fi
+
+  [[ -n "$url" ]] && note "Get a key: ${url}"
+  ask_secret key "${label} API key"
+  [[ -z "$key" ]] && { warn "No key entered — skipped ${label}."; return 1; }
+  say "Validating the key with ${label} (a free metadata call — no tokens are spent)…"
+  rc=0
+  validate_provider_key "$id" "$key" || rc=$?
+  if [[ $rc -eq 0 ]]; then
+    ok "Key verified with ${label}"
+  elif [[ $rc -eq 1 ]]; then
+    warn "${label} rejected this key."
+    if ! confirm "Save it anyway?" n; then return 1; fi
+  else
+    warn "Could not reach ${label} to validate (offline?). Saving unverified."
+  fi
+  set_env "$key_var" "$key"
+  ask model "Default model" "$model"
+  [[ -n "$model" ]] && set_env "$model_var" "$model"
+  CONFIGURED_PROVIDER="$id"
+  return 0
+}
+
+step_setup() {
+  section "6 / 6  Setup"
+  ensure_root
+  cd "$ROOT"
+  if [[ "$NO_ONBOARD" == "1" ]]; then
+    note "Onboarding skipped. Run it any time: ./install.sh --onboard"
+    return 0
+  fi
+  if [[ "$MODE" != "onboard" ]] && grep -Eq '^USE_REAL_LLM=true' .env 2>/dev/null; then
+    ok "AI provider already configured in .env — onboarding not needed"
+    note "Reconfigure any time: ./install.sh --onboard"
+    return 0
+  fi
+  init_tty
+  if [[ -z "$TTY_DEV" ]]; then
+    warn "No interactive terminal detected — skipping guided setup."
+    note "Finish setup any time: cd ${ROOT} && ./install.sh --onboard"
+    return 0
+  fi
+
+  say "Interactive setup — every answer is written to ${ROOT}/.env and stays on this machine."
+
+  if confirm "Single-user self-host mode (recommended for a personal install)?" y; then
+    set_env SELF_HOST true
+    ok "Self-host mode enabled — no signup wall, you own the instance"
+  fi
+
+  if ! env_has AETHOS_VAULT_KEY; then
+    local vault_key
+    vault_key="$(.venv/bin/python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' 2>/dev/null || true)"
+    if [[ -n "$vault_key" ]]; then
+      set_env AETHOS_VAULT_KEY "$vault_key"
+      ok "Generated the credential-vault encryption key"
+    fi
+  fi
+
+  if confirm "Protect Mission Control with a login passphrase?" n; then
+    local pass
+    ask_secret pass "Choose a passphrase"
+    if [[ -n "$pass" ]]; then
+      set_env AETHOS_LOGIN_ENABLED true
+      set_env AETHOS_LOGIN_PASSPHRASE "$pass"
+      ok "Login passphrase set"
+    fi
+  fi
+
+  local first_provider="" any=0
+  while true; do
+    if configure_one_provider; then
+      any=1
+      [[ -z "$first_provider" ]] && first_provider="$CONFIGURED_PROVIDER"
+      confirm "Add another provider?" n || break
+    else
+      break
+    fi
+  done
+  if [[ "$any" == "1" ]]; then
+    set_env USE_REAL_LLM true
+    [[ "$first_provider" != "local" ]] && set_env ACTIVE_PROVIDER "$first_provider"
+    ok "AI reasoning enabled (ACTIVE_PROVIDER=${first_provider})"
+  else
+    warn "No AI provider configured — AethOS starts in limited mode."
+    note "Add one later: ./install.sh --onboard, or Mission Control → Connections."
+  fi
+
+  if confirm "Enable web research (needs a Tavily API key)?" n; then
+    local skey
+    ask_secret skey "Tavily API key (tvly-…)"
+    if [[ -n "$skey" ]]; then
+      set_env WEB_RESEARCH_ENABLED true
+      set_env WEB_SEARCH_PROVIDER tavily
+      set_env WEB_SEARCH_API_KEY "$skey"
+      ok "Web research enabled"
+    fi
+  fi
+
+  if confirm "Connect a Telegram bot?" n; then
+    local tg
+    ask_secret tg "Telegram bot token (from @BotFather)"
+    if [[ -n "$tg" ]]; then
+      set_env TELEGRAM_ENABLED true
+      set_env TELEGRAM_BOT_TOKEN "$tg"
+      ok "Telegram channel enabled"
+    fi
+  fi
+
+  ok "Setup complete — configuration saved to .env"
 }
 
 step_index() {
@@ -522,24 +807,128 @@ print_success() {
   printf '  %bAPI health%b        http://127.0.0.1:%s/api/v1/health\n' "$BOLD" "$RESET" "$API_PORT"
   printf '  %bDoctor%b            cd %q && .venv/bin/aethos doctor\n' "$BOLD" "$RESET" "$ROOT"
   printf '\n'
-  printf '  %bAI provider%b       Set USE_REAL_LLM=true and at least one key in %q/.env\n' "$BOLD" "$RESET" "$ROOT"
-  note "Supported: Anthropic · OpenRouter · OpenAI · Gemini · Mistral · Groq · xAI · DeepSeek · Together · local (Ollama/LM Studio)"
+  if grep -Eq '^USE_REAL_LLM=true' "$ROOT/.env" 2>/dev/null; then
+    printf '  %bAI provider%b       Configured (%s) — manage more in Mission Control → Connections\n' "$BOLD" "$RESET" "$(grep -E '^ACTIVE_PROVIDER=' "$ROOT/.env" | head -1 | cut -d= -f2)"
+  else
+    printf '  %bAI provider%b       Not configured yet — run: ./install.sh --onboard\n' "$BOLD" "$RESET"
+    note "Supported: Anthropic · OpenRouter · OpenAI · Gemini · Mistral · Groq · xAI · DeepSeek · Together · local (Ollama/LM Studio)"
+  fi
   printf '\n'
+  note "Update:           ./install.sh --update"
+  note "Reinstall fresh:  ./install.sh --reinstall     Uninstall: ./install.sh --uninstall"
+  note "Setup wizard:     ./install.sh --onboard"
   note "Installer status: ./install.sh --status"
   note "Step help:        ./install.sh --help-step STEP"
   note "Detailed log:     ${LOG_FILE}"
   note "Mutation execution and host shell access are still disabled."
 }
 
+verified_install_root() { # a directory that is really an AethOS checkout
+  local r="$1"
+  [[ -n "$r" && -f "$r/pyproject.toml" ]] && grep -Eq '^name[[:space:]]*=[[:space:]]*"aethos"' "$r/pyproject.toml"
+}
+
+do_uninstall() {
+  local target backup
+  target="$(resolve_existing_root)"
+  [[ -z "$target" ]] && target="$INSTALL_DIR"
+  if ! verified_install_root "$target"; then
+    fail "No AethOS install found at ${target}."
+    exit 2
+  fi
+  init_tty
+  print_banner
+  warn "This removes the AethOS install at ${target} (source, venv, dependencies, installer state)."
+  if [[ -f "$target/.env" ]]; then
+    backup="${HOME}/aethos-env-backup-$(date +%Y%m%d-%H%M%S)"
+    if confirm "Save a copy of your .env configuration to ${backup} first?" y; then
+      cp "$target/.env" "$backup" && ok "Saved ${backup}"
+    fi
+  fi
+  if ! confirm "Permanently remove ${target}?" n; then
+    say "Uninstall cancelled — nothing was removed."
+    exit 0
+  fi
+  cd "$HOME"
+  rm -rf "$target" "${target}.installer"
+  ok "AethOS removed from ${target}."
+  note "Reinstall any time: curl -fsSL ${INSTALLER_URL} | bash"
+}
+
+prepare_reinstall() {
+  local target
+  target="$(resolve_existing_root)"
+  [[ -z "$target" ]] && target="$INSTALL_DIR"
+  if ! verified_install_root "$target"; then
+    fail "No AethOS install found at ${target} — run a normal install instead."
+    exit 2
+  fi
+  warn "Reinstall removes ${target} and installs the latest version fresh."
+  if [[ -f "$target/.env" ]]; then
+    if confirm "Keep your current .env configuration for the new install?" y; then
+      RESTORE_ENV="$(mktemp "${TMPDIR:-/tmp}/aethos-env.XXXXXX")"
+      cp "$target/.env" "$RESTORE_ENV"
+      ok "Your .env will be restored after the reinstall"
+    fi
+  fi
+  if ! confirm "Remove ${target} and reinstall now?" n; then
+    say "Reinstall cancelled — nothing was removed."
+    exit 0
+  fi
+  cd "$HOME"
+  rm -rf "$target" "${target}.installer"
+  ROOT=""
+  INSTALL_DIR="$target"
+  init_state
+  ok "Old install removed — installing fresh"
+}
+
+offer_existing_install_menu() {
+  local existing choice
+  existing="$(resolve_existing_root)"
+  [[ -n "$existing" && -x "$existing/.venv/bin/python" ]] || return 0
+  [[ "$MODE" == "install" && "$RESUME" == "0" && -z "$FROM_STEP" ]] || return 0
+  init_tty
+  [[ -n "$TTY_DEV" ]] || return 0
+  say "AethOS is already installed at ${existing}."
+  printf '  %bU%b  Update to the latest version (default)\n' "$BOLD" "$RESET" >/dev/tty
+  printf '  %bR%b  Remove it and reinstall fresh\n' "$BOLD" "$RESET" >/dev/tty
+  printf '  %bO%b  Run only the setup wizard (providers, passphrase)\n' "$BOLD" "$RESET" >/dev/tty
+  printf '  %bQ%b  Quit without changing anything\n' "$BOLD" "$RESET" >/dev/tty
+  ask choice "What would you like to do?" "U"
+  case "$choice" in
+    [Rr]*) MODE="reinstall" ;;
+    [Oo]*) MODE="onboard" ;;
+    [Qq]*) say "No changes made."; exit 0 ;;
+    *) MODE="update" ;;
+  esac
+}
+
 main() {
   parse_args "$@"
   init_state
-  if [[ "$MODE" == "status" ]]; then
-    show_status
+  case "$MODE" in
+    status) show_status; return ;;
+    uninstall) do_uninstall; return ;;
+  esac
+  trap 'on_error "$LINENO"' ERR
+  offer_existing_install_menu
+  if [[ "$MODE" == "onboard" ]]; then
+    ROOT="$(resolve_existing_root)"
+    verified_install_root "$ROOT" || { fail "No existing install found — run the installer first."; exit 2; }
+    print_banner
+    CURRENT_STEP="setup"
+    step_setup
     return
   fi
-  trap 'on_error "$LINENO"' ERR
   print_banner
+  if [[ "$MODE" == "reinstall" ]]; then
+    init_tty
+    prepare_reinstall
+  elif [[ "$MODE" == "update" ]]; then
+    rm -f "$STATE_DIR"/*.done 2>/dev/null || true
+    say "Updating AethOS to the latest '${BRANCH}'…"
+  fi
   note "Progress is checkpointed; a failed run can continue with --resume."
   run_steps
   CURRENT_STEP="complete"
