@@ -1,0 +1,21 @@
+# Exact historical fingerprints for an empty example setting and synthetic test
+# fixtures. Keep this list narrow: real or ambiguous credentials must be revoked
+# and removed from history.
+f5d7c1d50ce03ddc9cb543685e4fa3cbfd2cbb05:.env.example:generic-api-key:384
+0684ffe411e0a0995ee08a8799bc8505691bc955:tests/test_provider_exec_credentialed_execution.py:stripe-access-token:161
+0684ffe411e0a0995ee08a8799bc8505691bc955:tests/test_provider_exec_credentialed_execution.py:stripe-access-token:165
+0684ffe411e0a0995ee08a8799bc8505691bc955:tests/test_provider_exec_credentialed_execution.py:stripe-access-token:170
+0de1af8a519c7d2ae6190b4954edb48e2e64b5ae:tests/test_revoked_user_reregister.py:generic-api-key:90
+543b2664634ab7e4e40722d8aa0ce2d41007548a:tests/test_transactional_email.py:generic-api-key:90
+8b668a86b48460d14e4c1c12dc6000553114455c:tests/test_provider_token_no_recursion.py:generic-api-key:20
+8d314e8728ac4467ccedb8e884771e3b04f74f38:tests/test_transactional_email.py:generic-api-key:27
+8d314e8728ac4467ccedb8e884771e3b04f74f38:tests/test_transactional_email.py:generic-api-key:42
+90ee36df6fefe7ea6537e233cab2880f1a6d233b:tests/test_supabase_env_completion.py:generic-api-key:109
+e29750dd20a226ed01ad74bd9fea981ac6aa5176:tests/test_credential_vault_keyring.py:generic-api-key:32
+e29750dd20a226ed01ad74bd9fea981ac6aa5176:tests/test_phase_966_credential_persistence.py:generic-api-key:35
+e29750dd20a226ed01ad74bd9fea981ac6aa5176:tests/test_phase_966_credential_persistence.py:generic-api-key:52
+e29750dd20a226ed01ad74bd9fea981ac6aa5176:tests/test_phase_966_credential_persistence.py:generic-api-key:54
+e29750dd20a226ed01ad74bd9fea981ac6aa5176:tests/test_phase_966_credential_persistence.py:generic-api-key:122
+e29750dd20a226ed01ad74bd9fea981ac6aa5176:tests/test_phase_983_credential_recovery_consistency.py:generic-api-key:145
+eb56d2154c5306094628dd4f146ebdecb6f2ed99:tests/test_tenant_owner_rbac.py:generic-api-key:97
+eb56d2154c5306094628dd4f146ebdecb6f2ed99:tests/test_tenant_owner_rbac.py:generic-api-key:144

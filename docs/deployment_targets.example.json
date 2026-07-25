@@ -1,0 +1,39 @@
+{
+  "targets": [
+    {
+      "alias": "aethos",
+      "repo": "pilotmain/AethOS",
+      "branch": "main",
+      "vercel_project": "",
+      "railway_project": "pilotos",
+      "railway_service": "aethos-api",
+      "railway_environment": "staging",
+      "root_directory": "",
+      "default_provider": "railway"
+    },
+    {
+      "alias": "killit",
+      "repo": "pilotmain/killit",
+      "branch": "main",
+      "vercel_project": "killit",
+      "default_provider": "vercel"
+    },
+    {
+      "alias": "invoice-pilot",
+      "aliases": ["invoicepilot"],
+      "repo": "pilotmain/invoicepilot",
+      "branch": "main",
+      "vercel_project": "invoicepilot",
+      "default_provider": "vercel"
+    },
+    {
+      "alias": "pilot-command-center",
+      "aliases": ["pilotcommandcenter"],
+      "repo": "pilotmain/pilot-command-center",
+      "branch": "main",
+      "vercel_project": "pilot-command-center",
+      "default_provider": "vercel"
+    }
+  ],
+  "_comment": "Copy entries into data/deployment_targets/targets.json or register via Mission Control API."
+}

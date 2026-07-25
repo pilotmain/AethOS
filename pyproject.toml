@@ -1,0 +1,74 @@
+[project]
+name = "aethos"
+version = "0.2.0"
+description = "Governed agentic operating system for evidence-backed operations"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Raya Meresa"},
+  {name = "PilotMain LLC"},
+]
+keywords = ["agents", "automation", "devops", "governance", "orchestration"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.9.0",
+  "pydantic-settings>=2.6.0",
+  "httpx>=0.27.0",
+  "cryptography>=43.0.0",
+  "psutil>=6.0.0",
+  "pywebpush>=2.0.0",
+  "python-multipart>=0.0.9",
+  "psycopg[binary]>=3.2.0",
+]
+
+[project.scripts]
+aethos = "aethos_core.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/pilotmain/AethOS"
+Documentation = "https://github.com/pilotmain/AethOS/tree/main/docs"
+Issues = "https://github.com/pilotmain/AethOS/issues"
+Source = "https://github.com/pilotmain/AethOS"
+
+[project.optional-dependencies]
+cloud = [
+  "boto3>=1.35.0",
+]
+secrets = [
+  "keyring>=25.0.0",
+]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+  "httpx>=0.27.0",
+  "ruff>=0.9.0",
+]
+browser = [
+  "playwright>=1.49.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["--import-mode=importlib"]
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "certification: AethOS core regression certification gate (make certify)",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aethos_core*", "aethos_sdk*"]

@@ -1,0 +1,65 @@
+# Native installer checks for the two supported desktop families.
+name: Installers
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS one-command path
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Validate shell entrypoints
+        run: |
+          bash -n install.sh run.sh
+          ./install.sh --help
+          ./run.sh --help
+      - name: Install and verify locally
+        env:
+          NO_COLOR: "1"
+        run: ./install.sh --detailed
+      - name: Check resumable status
+        run: ./install.sh --status
+
+  windows:
+    name: Windows one-command path
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Validate PowerShell entrypoints
+        shell: powershell
+        run: |
+          .\install.ps1 -Help
+          .\run.ps1 -Help
+      - name: Install and verify locally
+        shell: powershell
+        run: .\install.ps1 -Detailed
+      - name: Check resumable status
+        shell: powershell
+        run: .\install.ps1 -Status

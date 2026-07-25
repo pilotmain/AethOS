@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: Apache-2.0
+"""WORKSTREAM_G2 / FIX 355 — operator intent parsing."""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from aethos_core.workstreams.real_usage_density_platform_adoption_program.real_usage_density_platform_adoption_program_contract import (
+    PLATFORM_ADOPTION_RECORD_KINDS,
+)
+from aethos_core.workstreams.real_usage_density_platform_adoption_program.real_usage_density_platform_adoption_program_executor import (
+    register_usage_session_from_text,
+)
+from aethos_core.workstreams.real_usage_density_platform_adoption_program.real_usage_density_platform_adoption_program_store import (
+    append_platform_adoption_record,
+)
+
+_DASHBOARD_RX = re.compile(r"^\s*show\s+platform\s+adoption\s+dashboard\s*$", re.IGNORECASE)
+_SESSION_RX = re.compile(r"^\s*platform\s+adoption\s+session\s*:\s*(?P<body>.+)$", re.IGNORECASE | re.S)
+_NOTE_RX = re.compile(r"^\s*platform\s+adoption\s+note\s*:\s*(?P<body>.+)$", re.IGNORECASE | re.S)
+_REVIEW_RX = re.compile(
+    r"^\s*platform\s+adoption\s+review\s+(?P<decision>approve|hold|reject|defer)\s*:\s*(?P<body>.+)$",
+    re.IGNORECASE | re.S,
+)
+
+
+def parse_platform_adoption_intent(raw: str) -> dict[str, Any] | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+
+    if _DASHBOARD_RX.match(text):
+        return {"action": "view", "focus": "platform_adoption_dashboard"}
+
+    session_match = _SESSION_RX.match(text)
+    if session_match:
+        body = (session_match.group("body") or "").strip()
+        if not body:
+            return None
+        return {"action": "session", "body": body}
+
+    note_match = _NOTE_RX.match(text)
+    if note_match:
+        body = (note_match.group("body") or "").strip()
+        if not body:
+            return None
+        return {"action": "record", "kind": "platform_adoption_note", "content": body}
+
+    review_match = _REVIEW_RX.match(text)
+    if review_match:
+        decision = review_match.group("decision").lower()
+        body = (review_match.group("body") or "").strip()
+        if not body:
+            return None
+        return {
+            "action": "record",
+            "kind": f"platform_adoption_review_{decision}",
+            "content": body,
+        }
+
+    lowered = text.lower()
+    if lowered.startswith("workstream g2:") or lowered.startswith("platform adoption:"):
+        body = text.split(":", 1)[1].strip()
+        return {"action": "record", "kind": "platform_adoption_record", "content": body}
+
+    return None
+
+
+def handle_platform_adoption_intent(
+    intent: dict[str, Any],
+    *,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    action = intent.get("action")
+    sid = (session_id or "default").strip()[:64] or "default"
+
+    if action == "view":
+        return {"action": "view", "focus": intent.get("focus") or "platform_adoption_dashboard"}
+
+    if action == "session":
+        entry = register_usage_session_from_text(program_session_id=sid, body=str(intent.get("body") or ""))
+        return {"action": "session", "entry": entry}
+
+    if action == "record":
+        kind = str(intent.get("kind") or "")
+        if kind not in PLATFORM_ADOPTION_RECORD_KINDS:
+            raise ValueError(f"unsupported record kind: {kind!r}")
+        record = append_platform_adoption_record(
+            kind=kind,
+            content=str(intent.get("content") or ""),
+            session_id=sid,
+            metadata=dict(intent.get("metadata") or {}),
+        )
+        return {"action": "record", "record": record}
+
+    raise ValueError(f"unsupported intent action: {action!r}")

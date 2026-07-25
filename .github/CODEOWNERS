@@ -1,0 +1,15 @@
+# Default ownership. GitHub branch rules should require code-owner review.
+* @pilotmain
+
+# High-risk project policy and automation.
+/.github/ @pilotmain
+/LICENSE @pilotmain
+/NOTICE @pilotmain
+/COPYRIGHT.md @pilotmain
+/LICENSING.md @pilotmain
+/SECURITY.md @pilotmain
+/GOVERNANCE.md @pilotmain
+/CODE_OF_CONDUCT.md @pilotmain
+/aethos_core/security/ @pilotmain
+/aethos_core/auth/ @pilotmain
+/aethos_core/operations/mutations/ @pilotmain

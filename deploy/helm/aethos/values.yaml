@@ -1,0 +1,46 @@
+deploymentMode: team
+workerMode: standalone
+replicaCount: 1
+workerReplicaCount: 1
+
+image:
+  repository: aethos
+  tag: "9.9"
+  pullPolicy: IfNotPresent
+
+webImage:
+  repository: aethos-web
+  tag: "9.9"
+
+service:
+  apiPort: 8010
+  webPort: 3000
+
+ingress:
+  enabled: false
+  host: aethos.local
+  tls: false
+
+persistence:
+  enabled: true
+  size: 10Gi
+
+resources:
+  api:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+  worker:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+env:
+  APP_ENV: production
+  DEPLOYMENT_MODE: team

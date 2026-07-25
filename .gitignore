@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.aethos-installer/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Local secrets / credentials (never commit)
+data/
+data/credentials/
+data/secrets/
+evidence/
+
+# Env
+.env
+.env.local
+
+# Node
+node_modules/
+web/node_modules/
+web/.next/
+web/out/
+web/tsconfig.tsbuildinfo
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Test / cache
+.pytest_cache/
+.coverage
+htmlcov/
+.claude/settings.local.json
+.claude/
+.cursor/
+
+# Local reports and work orders
+AETHOS_*_WORK_ORDER*.md
+AETHOS_*_FIX*.md
+*_INTERNAL.md
+docs/*_REPORT.md
+docs/*_REVIEW.md
+docs/*_ASSESSMENT.md
+docs/FIX_*.md
+docs/PHASE_*.md
+docs/WORKSTREAM_*.md

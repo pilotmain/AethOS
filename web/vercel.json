@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/aethos-api/:path*",
+      "destination": "https://aethos-api-staging.up.railway.app/:path*"
+    }
+  ]
+}

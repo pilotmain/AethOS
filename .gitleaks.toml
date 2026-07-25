@@ -1,0 +1,13 @@
+# AethOS gitleaks config — extends the default rules, allowlists known
+# non-secret fixtures so the secret-scan gate stays signal (no false positives).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "AethOS documented placeholder and synthetic fixture values"
+regexes = [
+  # Documented placeholder values, never real secrets.
+  '''(?i)(your[-_ ]?(api[-_ ]?key|token|secret)|placeholder|changeme|xxxx+|<[^>]+>)''',
+  # Synthetic test-only prefixes remain clearly non-production.
+  '''(?i)(ghp|xoxb|sk-ant|sk)-[a-z0-9_-]*(test|fake|example|fixture|placeholder)[a-z0-9_-]*''',
+]

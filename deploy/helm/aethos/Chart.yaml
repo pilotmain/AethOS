@@ -1,0 +1,6 @@
+apiVersion: v2
+name: aethos
+description: AethOS — governed operational intelligence platform
+type: application
+version: 0.9.0
+appVersion: "9.9.0"

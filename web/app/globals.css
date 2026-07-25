@@ -1,0 +1,1285 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+body {
+  padding:
+    env(safe-area-inset-top, 0)
+    env(safe-area-inset-right, 0)
+    env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
+}
+
+/* AethOS design tokens (handoff §13). AethOS is dark-first: one dark token set
+   is the single source of truth. color-scheme is pinned to dark so the OS
+   light-mode setting can never flip backgrounds or native form controls and
+   create dark-component-on-light-page contrast breaks (FIX 1). A real light
+   theme requires tokenizing every component first; until then, no light block. */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces — single source of truth. layout.ts `mcColors` and the
+     `darkOperationalPalette` dark tokens mirror these exact values; keep in
+     sync (the operational palette stays hex only because the theme provider /
+     accessibility-mode math needs concrete colors). */
+  --aethos-bg: #080b12;
+  --aethos-bg-deep: #04060c;
+  --aethos-bg-elevated: #0e1018;
+  --aethos-bg-card: #12141f;
+  --aethos-surface: rgba(255, 255, 255, 0.03);
+  --aethos-surface-strong: rgba(255, 255, 255, 0.06);
+  --aethos-navy: #0e1424;
+
+  /* Glassmorphic panel surface — translucent over the shell, soft glowing edge.
+     Drives the cards across ~100 Mission Control / workspace panels via mcCardStyle. */
+  --aethos-glass-bg: rgba(18, 21, 34, 0.72);
+  --aethos-glass-bg-strong: rgba(20, 24, 40, 0.86);
+  --aethos-glass-border: rgba(125, 211, 252, 0.14);
+
+  /* Borders */
+  --aethos-border: rgba(255, 255, 255, 0.1);
+  --aethos-border-subtle: rgba(255, 255, 255, 0.06);
+
+  /* Text — all content tiers meet WCAG AA on --aethos-bg. text-dim is
+     decoration-grade only (still ~4.6:1); never render real content below it. */
+  --aethos-text: #e4e4e7;
+  --aethos-text-strong: #ffffff;
+  --aethos-text-muted: #a1a1aa;
+  --aethos-text-dim: #9ca3af;
+
+  /* Accent + status — cyan primary, violet secondary; cyan↔violet is the
+     AethOS signature gradient (logo, headers, agent graph edges). */
+  --aethos-accent: #22d3ee;
+  --aethos-accent-soft: rgba(34, 211, 238, 0.12);
+  --aethos-accent-dim: rgba(34, 211, 238, 0.35);
+  --aethos-violet: #a78bfa;
+  --aethos-violet-soft: rgba(167, 139, 250, 0.12);
+  --aethos-violet-dim: rgba(167, 139, 250, 0.35);
+  --aethos-accent-grad: linear-gradient(135deg, #22d3ee 0%, #a78bfa 100%);
+  --aethos-accent-grad-soft: linear-gradient(135deg, rgba(34, 211, 238, 0.16) 0%, rgba(167, 139, 250, 0.16) 100%);
+  --aethos-accent-glow: 0 0 0 1px var(--aethos-accent-dim), 0 8px 30px -12px rgba(34, 211, 238, 0.45);
+  --aethos-glow-cyan: 0 0 24px -4px rgba(34, 211, 238, 0.5);
+  --aethos-glow-violet: 0 0 24px -4px rgba(167, 139, 250, 0.5);
+  --aethos-ok: #34d399;
+  --aethos-warn: #fbbf24;
+  --aethos-danger: #f87171;
+  --aethos-ok-bg: rgba(52, 211, 153, 0.12);
+  --aethos-warn-bg: rgba(251, 191, 36, 0.12);
+  --aethos-danger-bg: rgba(248, 113, 113, 0.12);
+
+  /* Spacing scale (4 / 8 / 12 / 16 / 24) and radii — calmer, consistent density. */
+  --aethos-space-1: 4px;
+  --aethos-space-2: 8px;
+  --aethos-space-3: 12px;
+  --aethos-space-4: 16px;
+  --aethos-space-6: 24px;
+  --aethos-radius-sm: 8px;
+  --aethos-radius: 12px;
+  --aethos-radius-lg: 16px;
+}
+
+/* Light theme — override the --aethos-* tokens so the WHOLE app flips light, not
+   just the components that read the runtime palette. The theme provider sets
+   data-mc-theme on <html> and is mounted at the root layout, so this applies on
+   every route (chat, workspace, Mission Control). Mirrors lightOperationalPalette. */
+html[data-mc-theme="light"] {
+  color-scheme: light;
+
+  --aethos-bg: #f2f3f5;
+  --aethos-bg-deep: #eef0f4;
+  --aethos-bg-elevated: #ffffff;
+  --aethos-bg-card: #ffffff;
+  --aethos-surface: rgba(15, 23, 42, 0.03);
+  --aethos-surface-strong: rgba(15, 23, 42, 0.06);
+  --aethos-navy: #e4e8ef;
+
+  --aethos-glass-bg: rgba(255, 255, 255, 0.74);
+  --aethos-glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --aethos-glass-border: rgba(15, 23, 42, 0.12);
+
+  --aethos-border: rgba(15, 23, 42, 0.14);
+  --aethos-border-subtle: rgba(15, 23, 42, 0.09);
+
+  --aethos-text: #0f0f12;
+  --aethos-text-strong: #09090b;
+  --aethos-text-muted: #3f3f46;
+  --aethos-text-dim: #52525b;
+
+  /* Darker cyan/violet so the signature gradient stays readable on white. */
+  --aethos-accent: #0891b2;
+  --aethos-accent-soft: rgba(8, 145, 178, 0.12);
+  --aethos-accent-dim: rgba(8, 145, 178, 0.35);
+  --aethos-violet: #7c3aed;
+  --aethos-violet-soft: rgba(124, 58, 237, 0.12);
+  --aethos-violet-dim: rgba(124, 58, 237, 0.35);
+  --aethos-accent-grad: linear-gradient(135deg, #0891b2 0%, #7c3aed 100%);
+  --aethos-accent-grad-soft: linear-gradient(135deg, rgba(8, 145, 178, 0.16) 0%, rgba(124, 58, 237, 0.16) 100%);
+  --aethos-accent-glow: 0 0 0 1px var(--aethos-accent-dim), 0 8px 30px -12px rgba(8, 145, 178, 0.4);
+  --aethos-glow-cyan: 0 0 24px -6px rgba(8, 145, 178, 0.4);
+  --aethos-glow-violet: 0 0 24px -6px rgba(124, 58, 237, 0.4);
+
+  --aethos-ok: #16a34a;
+  --aethos-warn: #d97706;
+  --aethos-danger: #dc2626;
+  --aethos-ok-bg: rgba(22, 163, 74, 0.12);
+  --aethos-warn-bg: rgba(217, 119, 38, 0.12);
+  --aethos-danger-bg: rgba(248, 113, 113, 0.12);
+}
+
+/* ── AethOS visual language — consistent gradient titles ─────────────────────
+   Every Mission Control panel/page title (h1, h2) and the header title render in
+   the cyan→violet signature, so the look is uniform across all ~118 panels + the
+   header WITHOUT editing each file. Scoped to the MC shell ([data-mc-scroll-root]),
+   so chat/markdown content on other routes is untouched. Sub-headings (h3+) stay
+   solid for hierarchy; sidebar nav labels are <div>/<button>, so unaffected.
+   Add class `aethos-no-gradient` to any heading that must keep a solid/semantic color. */
+[data-mc-scroll-root] h1:not(.aethos-no-gradient),
+[data-mc-scroll-root] h2:not(.aethos-no-gradient),
+.aethos-gradient-text {
+  background-image: var(--aethos-accent-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+[data-mc-scroll-root] h1.aethos-no-gradient,
+[data-mc-scroll-root] h2.aethos-no-gradient {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: inherit;
+}
+
+/* Solid cyan accent for inline body emphasis where a full gradient is too much. */
+.aethos-accent-text {
+  color: var(--aethos-accent);
+}
+
+/* Governance chip — every mutating/network action shows its preflight state inline
+   (handoff §13: "Governance is always visible"). Nothing destructive looks normal. */
+.aethos-governance-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid var(--aethos-warn);
+  border-left-width: 3px;
+  background: var(--aethos-warn-bg);
+  color: var(--aethos-warn);
+  background: color-mix(in srgb, var(--aethos-warn) 12%, transparent);
+}
+
+.aethos-governance-chip[data-state="approved"] {
+  border-color: var(--aethos-ok);
+  color: var(--aethos-ok);
+  background: color-mix(in srgb, var(--aethos-ok) 12%, transparent);
+}
+
+.aethos-governance-chip[data-state="readonly"] {
+  border-color: var(--aethos-accent);
+  color: var(--aethos-accent);
+  background: var(--aethos-accent-soft);
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--aethos-bg-deep, #050508);
+  color: var(--aethos-text, #e4e4e7);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* §11 Accessibility (WCAG 2.1 AA) — visible keyboard focus (2.4.7), skip link
+   (2.4.1), and a screen-reader-only utility. Dark-first focus ring uses the
+   accent token so it meets contrast against AethOS surfaces. */
+:focus-visible {
+  outline: 2px solid var(--aethos-accent, #22d3ee);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--aethos-accent, #22d3ee);
+  outline-offset: 2px;
+}
+
+/* Keyboard focus must remain visible even where mouse :focus removes the outline. */
+.chat-composer-input:focus-visible {
+  outline: 2px solid var(--aethos-accent, #22d3ee);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.aethos-skip-link {
+  position: absolute;
+  left: 8px;
+  top: -56px;
+  z-index: 1000;
+  padding: 8px 14px;
+  background: var(--aethos-surface-strong, rgba(255, 255, 255, 0.06));
+  color: var(--aethos-text, #e4e4e7);
+  border: 1px solid var(--aethos-accent, #22d3ee);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.aethos-skip-link:focus {
+  top: 8px;
+}
+
+textarea,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--aethos-border, rgba(255, 255, 255, 0.1));
+  color: var(--aethos-text, #e4e4e7);
+}
+
+/* Placeholders/hints use the dim token (now ~7.6:1 on bg, well past AA 4.5:1). */
+input::placeholder,
+textarea::placeholder {
+  color: var(--aethos-text-dim, #9ca3af);
+}
+
+/* Right context rail (§3): divider-separated sections, not boxed cards. The
+   first section needs no leading divider under the rail's top padding. */
+.chat-context-panel > section:first-of-type {
+  border-top: none;
+}
+
+/* Mission Control wide layout — responsive sidebar */
+@media (max-width: 960px) {
+  .mc-sidebar,
+  .chat-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  .mc-sidebar[data-mobile-open="true"],
+  .chat-sidebar[data-mobile-open="true"] {
+    transform: translateX(0);
+  }
+
+  .mc-mobile-nav-toggle,
+  .chat-mobile-nav-toggle {
+    display: inline-flex !important;
+  }
+
+  .chat-context-panel {
+    display: none !important;
+  }
+
+  .chat-context-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1200px) {
+  .chat-context-panel {
+    display: none;
+  }
+}
+
+@media (min-width: 961px) {
+  .mc-sidebar,
+  .chat-sidebar {
+    position: relative;
+    transform: none !important;
+  }
+}
+
+@media (min-width: 1201px) {
+  .chat-context-toggle {
+    display: none !important;
+  }
+}
+
+@keyframes chat-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chat-cursor-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.chat-fade-in {
+  animation: chat-fade-in 0.22s ease-out;
+}
+
+.chat-message-streaming {
+  box-shadow: 0 0 28px rgba(34, 211, 238, 0.08);
+}
+
+.chat-stream-cursor::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: #22d3ee;
+  animation: chat-cursor-pulse 1s ease-in-out infinite;
+}
+
+/* §3 live progress narration — running-step spinner */
+@keyframes chat-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chat-progress-spin {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: var(--aethos-accent);
+  border-radius: 50%;
+  animation: chat-progress-spin 0.7s linear infinite;
+}
+
+.chat-composer-input:focus {
+  outline: none;
+  border-color: rgba(34, 211, 238, 0.35);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.12);
+}
+
+/* Mission Control calm motion — Phase 10.1.5.1 */
+@keyframes mc-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mc-fade-in {
+  animation: mc-fade-in 0.28s ease-out;
+}
+
+.mc-domain-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.24s ease, opacity 0.2s ease;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.mc-domain-expanded .mc-domain-body {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.mc-domain-body > .mc-domain-body-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mc-domain-expanded .mc-domain-body > .mc-domain-body-inner {
+  overflow: visible;
+}
+
+.mc-domain-dimmed .mc-domain-toggle {
+  opacity: 0.82;
+}
+
+.mc-quick-link,
+.mc-calm-button,
+.mc-nav-item,
+.mc-domain-toggle {
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+
+.mc-quick-link:hover,
+.mc-nav-item:hover,
+.mc-domain-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mc-depth-expand:hover {
+  opacity: 0.85;
+}
+
+.mc-focus-primary {
+  transition: box-shadow 0.25s ease;
+}
+
+.mc-focus-primary:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+}
+
+.mc-tertiary-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.mc-tertiary-details[open] summary {
+  margin-bottom: 4px;
+}
+
+/* Phase 10.1.5.2 — Ambient operational presence */
+.mc-ambient-shell {
+  transition: background 0.65s ease;
+}
+
+.mc-ambient-surface {
+  position: relative;
+}
+
+.mc-presence-whisper {
+  opacity: 0.82;
+  transition: opacity 0.3s ease;
+}
+
+.mc-breathe {
+  animation: mc-breathe 6s ease-in-out infinite;
+}
+
+@keyframes mc-breathe {
+  0%,
+  100% {
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.22);
+  }
+  50% {
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.26);
+  }
+}
+
+.mc-context-emerge {
+  animation: mc-fade-in 0.36s ease-out;
+}
+
+.mc-premium-card {
+  transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
+}
+
+.mc-premium-card:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.mc-progressive-loading {
+  animation: mc-pulse-soft 1.8s ease-in-out infinite;
+}
+
+@keyframes mc-pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+[data-mc-ambient="elevated"] .mc-focus-primary {
+  border-color: rgba(251, 191, 36, 0.12);
+}
+
+[data-mc-ambient="critical"] .mc-focus-primary {
+  border-color: rgba(248, 113, 113, 0.14);
+}
+
+/* Phase 10.1.5.3 — Living operational atmosphere */
+.mc-living-space {
+  --mc-breathe-shadow: 0 20px 56px rgba(0, 0, 0, 0.22);
+  --mc-breathe-shadow-peak: 0 22px 60px rgba(0, 0, 0, 0.26);
+}
+
+.mc-living-atmosphere {
+  transition: background 0.65s ease, box-shadow 0.65s ease;
+}
+
+.mc-atmosphere-whisper {
+  letter-spacing: 0.01em;
+  opacity: 0.78;
+}
+
+.mc-living-canvas {
+  transition: box-shadow 0.65s ease, border-color 0.5s ease, padding 0.45s ease;
+}
+
+.mc-atmosphere-cool-quiet {
+  --mc-atmosphere-tint: rgba(148, 163, 184, 0.02);
+}
+
+.mc-atmosphere-aware {
+  --mc-atmosphere-tint: rgba(56, 189, 248, 0.025);
+}
+
+.mc-atmosphere-warm-focus {
+  --mc-atmosphere-tint: rgba(251, 191, 36, 0.035);
+}
+
+.mc-atmosphere-restrained-urgency {
+  --mc-atmosphere-tint: rgba(248, 113, 113, 0.04);
+}
+
+[data-mc-atmosphere="warm-focus"] .mc-focus-primary {
+  border-color: rgba(251, 191, 36, 0.14);
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.03) 0%, rgba(255, 255, 255, 0.015) 100%);
+}
+
+[data-mc-atmosphere="restrained-urgency"] .mc-focus-primary {
+  border-color: rgba(248, 113, 113, 0.16);
+}
+
+.mc-ambient-pulse .mc-focus-primary {
+  animation: mc-ambient-pulse 5.6s ease-in-out infinite;
+}
+
+@keyframes mc-ambient-pulse {
+  0%,
+  100% {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+  50% {
+    border-color: rgba(56, 189, 248, 0.1);
+  }
+}
+
+.mc-compress-inactive .mc-sidebar-domain:not([data-expanded="true"]) {
+  opacity: 0.72;
+}
+
+.mc-compress-inactive .mc-sidebar-domain:not([data-expanded="true"]) .mc-nav-item {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.mc-compressed-layer {
+  opacity: 0.88;
+  transform: scale(0.995);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.mc-expand-investigation .mc-focus-primary,
+.mc-investigation-expanded {
+  padding: 36px 40px;
+}
+
+.mc-luxury-button,
+.mc-luxury-link {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.mc-luxury-button:hover,
+.mc-luxury-link:hover {
+  opacity: 0.92;
+}
+
+.mc-luxury-card {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease, border-color 0.28s ease;
+}
+
+.mc-hover-minimal .mc-luxury-card:hover,
+.mc-hover-minimal .mc-premium-card:hover {
+  transform: none;
+}
+
+.mc-rhythm-slow .mc-breathe {
+  animation-duration: 7.2s;
+}
+
+.mc-rhythm-steady .mc-breathe {
+  animation-duration: 4.8s;
+}
+
+.mc-living-sidebar {
+  transition: background 0.65s ease, opacity 0.4s ease;
+}
+
+/* Phase 10.1.5.4 — Cognitive presence & spatial trust */
+.mc-cognitive-presence,
+.mc-cognitive-canvas {
+  transition: opacity 0.5s ease, background 0.65s ease;
+}
+
+.mc-trust-whisper {
+  opacity: 0.74;
+  letter-spacing: 0.015em;
+}
+
+.mc-cognitive-light .mc-focus-primary {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.mc-cognitive-moderate .mc-supporting-layer {
+  opacity: 0.94;
+}
+
+.mc-cognitive-elevated .mc-compressed-layer,
+.mc-cognitive-heavy .mc-compressed-layer {
+  opacity: 0.82;
+}
+
+.mc-deep-focus .mc-breathe,
+.mc-deep-focus .mc-ambient-pulse .mc-focus-primary {
+  animation: none;
+}
+
+.mc-deep-focus .mc-focus-primary {
+  padding: 40px 44px;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.28);
+}
+
+.mc-deep-focus .mc-supporting-layer,
+.mc-deep-focus .mc-tertiary-details {
+  display: none;
+}
+
+.mc-invisible-quiet .mc-presence-whisper {
+  opacity: 0.68;
+}
+
+.mc-trust-recovery .mc-focus-primary {
+  transition: border-color 0.8s ease, box-shadow 0.8s ease;
+}
+
+.mc-trust-restrained .mc-focus-primary {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.mc-single-thought h2 {
+  letter-spacing: -0.025em;
+}
+
+.mc-companion-card {
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), background 0.32s ease, border-color 0.32s ease, opacity 0.32s ease;
+}
+
+.mc-companion-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.mc-deep-focus .mc-companion-card:hover {
+  transform: none;
+}
+
+.mc-cognitive-sidebar.mc-deep-focus {
+  opacity: 0.88;
+}
+
+[data-mc-cognitive="heavy"] .mc-sidebar-domain:not([data-expanded="true"]) {
+  opacity: 0.65;
+}
+
+/* Phase 10.1.5.5 — Invisible operational intelligence & cognitive flow */
+.mc-invisible-intelligence,
+.mc-invisible-canvas {
+  transition: opacity 0.55s ease, background 0.7s ease;
+}
+
+.mc-flow-whisper {
+  opacity: 0.72;
+}
+
+.mc-whisper-passive {
+  opacity: 0.58;
+  font-size: 11px;
+}
+
+.mc-flow-minimal-motion .mc-breathe,
+.mc-flow-minimal-motion .mc-ambient-pulse .mc-focus-primary,
+.mc-operational-silence .mc-breathe {
+  animation: none !important;
+}
+
+.mc-flow-immersed .mc-focus-primary,
+.mc-flow-immersed-canvas {
+  padding: 44px 48px;
+  max-width: 920px;
+}
+
+.mc-deep-focus-immersion .mc-supporting-layer,
+.mc-deep-focus-immersion .mc-tertiary-details,
+.mc-flow-immersed .mc-supporting-layer {
+  display: none;
+}
+
+.mc-sidebar-heavy-compress .mc-sidebar-domain:not([data-expanded="true"]) {
+  opacity: 0.58;
+  max-height: 2.4em;
+  overflow: hidden;
+}
+
+.mc-trust-atmosphere .mc-focus-primary {
+  transition: border-color 0.85s ease, box-shadow 0.85s ease, padding 0.5s ease;
+}
+
+.mc-trust-honest .mc-focus-primary {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.mc-trust-recovery-calm .mc-focus-primary {
+  border-color: rgba(148, 163, 184, 0.08);
+}
+
+.mc-emotional-steady .mc-focus-primary {
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
+}
+
+.mc-emotional-recovery .mc-presence-whisper {
+  opacity: 0.65;
+}
+
+.mc-attention-silent .mc-presence-whisper {
+  display: none;
+}
+
+.mc-attention-passive [data-attention-chip] {
+  opacity: 0.72;
+}
+
+.mc-whisper-telemetry summary {
+  opacity: 0.68;
+  font-size: 12px;
+}
+
+.mc-invisible-assistance .mc-supporting-layer {
+  opacity: 0.86;
+}
+
+.mc-flow-investigating .mc-focus-primary {
+  border-color: rgba(251, 191, 36, 0.1);
+}
+
+.mc-companion-card {
+  transition: transform 0.34s cubic-bezier(0.19, 1, 0.22, 1), background 0.34s ease, border-color 0.34s ease, opacity 0.34s ease;
+}
+
+.mc-flow-minimal-motion .mc-companion-card:hover,
+.mc-operational-silence .mc-companion-card:hover {
+  transform: none;
+}
+
+/* Phase 10.1.5.6 — Cognitive partnership & operational serenity */
+.mc-cognitive-partnership,
+.mc-partnership-canvas {
+  transition: opacity 0.6s ease, background 0.75s ease;
+}
+
+.mc-partnership-whisper {
+  opacity: 0.68;
+  letter-spacing: 0.018em;
+}
+
+.mc-deep-serenity .mc-breathe,
+.mc-deep-serenity .mc-ambient-pulse .mc-focus-primary,
+.mc-serenity-immersed .mc-breathe {
+  animation: none !important;
+}
+
+.mc-deep-serenity .mc-focus-primary,
+.mc-serenity-canvas {
+  padding: 48px 52px;
+  max-width: 960px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.3);
+}
+
+.mc-deep-serenity .mc-supporting-layer,
+.mc-deep-serenity .mc-tertiary-details,
+.mc-serenity-immersed .mc-supporting-layer {
+  display: none;
+}
+
+.mc-partnership-sidebar.mc-deep-serenity {
+  opacity: 0.82;
+}
+
+.mc-operational-serenity .mc-focus-primary {
+  transition: border-color 0.9s ease, box-shadow 0.9s ease, padding 0.55s ease;
+}
+
+.mc-serenity-recovery .mc-presence-whisper {
+  opacity: 0.62;
+}
+
+.mc-trust-presence-steady .mc-focus-primary {
+  border-color: rgba(255, 255, 255, 0.055);
+}
+
+.mc-trust-presence-honest .mc-focus-primary {
+  border-color: rgba(148, 163, 184, 0.07);
+}
+
+.mc-human-steady .mc-focus-primary {
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.26);
+}
+
+.mc-attention-whisper .mc-presence-whisper {
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.mc-attention-silent .mc-presence-whisper {
+  display: none;
+}
+
+.mc-partnership-continuity .mc-single-thought h2 {
+  letter-spacing: -0.028em;
+  line-height: 1.32;
+}
+
+[data-mc-serenity="true"] .mc-sidebar-domain:not([data-expanded="true"]) {
+  opacity: 0.52;
+}
+
+.mc-whisper-telemetry summary {
+  opacity: 0.62;
+  font-size: 11px;
+}
+
+/* Phase 10.1.5.7 — Ambient calm operational cognition */
+.mc-calm-cognition,
+.mc-ambient-cognition-canvas {
+  transition: opacity 0.65s ease, background 0.8s ease;
+}
+
+.mc-ambient-cognition-whisper {
+  opacity: 0.64;
+  letter-spacing: 0.02em;
+}
+
+.mc-ambient-rhythm-invisible .mc-breathe,
+.mc-ambient-rhythm-invisible .mc-ambient-pulse .mc-focus-primary,
+.mc-atmospheric-stillness .mc-breathe {
+  animation: none !important;
+}
+
+.mc-deep-focus-environment .mc-focus-primary,
+.mc-deep-focus-environment-canvas {
+  padding: 52px 56px;
+  max-width: 1000px;
+  box-shadow: 0 36px 88px rgba(0, 0, 0, 0.32);
+}
+
+.mc-deep-focus-environment .mc-supporting-layer,
+.mc-deep-focus-environment .mc-tertiary-details,
+.mc-atmospheric-stillness .mc-supporting-layer {
+  display: none;
+}
+
+.mc-ambient-sidebar.mc-deep-focus-environment {
+  opacity: 0.78;
+}
+
+.mc-calm-computing .mc-focus-primary {
+  transition: border-color 1s ease, box-shadow 1s ease, padding 0.6s ease;
+}
+
+.mc-calm-recovery .mc-presence-whisper {
+  opacity: 0.58;
+}
+
+.mc-attention-atmospheric .mc-presence-whisper {
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+.mc-invisible-guidance-silent .mc-presence-whisper {
+  display: none;
+}
+
+.mc-operational-ergonomics .mc-single-thought h2 {
+  letter-spacing: -0.03em;
+  line-height: 1.3;
+}
+
+[data-mc-serenity="true"] .mc-sidebar-domain:not([data-expanded="true"]) {
+  opacity: 0.48;
+}
+
+.mc-ambient-flow-immersive .mc-focus-primary {
+  border-color: rgba(148, 163, 184, 0.08);
+}
+
+/* Phase 10.1.5.8 — Operational consciousness & flow protection */
+.mc-operational-consciousness,
+.mc-consciousness-canvas {
+  transition: opacity 0.7s ease, background 0.85s ease;
+}
+
+.mc-consciousness-whisper {
+  opacity: 0.6;
+  letter-spacing: 0.022em;
+}
+
+.mc-deep-cognitive-immersion .mc-breathe,
+.mc-immersive-silence .mc-breathe,
+.mc-flow-protected .mc-ambient-pulse .mc-focus-primary {
+  animation: none !important;
+}
+
+.mc-deep-cognitive-immersion-canvas,
+.mc-deep-cognitive-immersion .mc-focus-primary {
+  padding: 56px 60px;
+  max-width: 1040px;
+  box-shadow: 0 40px 96px rgba(0, 0, 0, 0.34);
+}
+
+.mc-deep-cognitive-immersion .mc-supporting-layer,
+.mc-deep-cognitive-immersion .mc-tertiary-details,
+.mc-immersive-silence .mc-supporting-layer {
+  display: none;
+}
+
+.mc-sidebar-near-invisible {
+  opacity: 0.72;
+}
+
+.mc-consciousness-sidebar.mc-deep-cognitive-immersion {
+  opacity: 0.68;
+}
+
+.mc-cognitive-harmony .mc-focus-primary {
+  transition: border-color 1.1s ease, box-shadow 1.1s ease, padding 0.65s ease;
+}
+
+.mc-harmony-recovery .mc-presence-whisper {
+  opacity: 0.54;
+}
+
+.mc-attention-invisible .mc-presence-whisper {
+  display: none;
+}
+
+.mc-attention-atmospheric .mc-presence-whisper {
+  font-size: 10px;
+  opacity: 0.48;
+}
+
+.mc-cognitive-ergonomics .mc-single-thought h2 {
+  letter-spacing: -0.032em;
+  line-height: 1.28;
+}
+
+[data-mc-consciousness="immersive"] .mc-sidebar-domain:not([data-expanded="true"]) {
+  opacity: 0.42;
+}
+
+.mc-whisper-telemetry summary {
+  opacity: 0.55;
+  font-size: 10px;
+}
+
+/* Phase 10.1.5.9 — Cognitive sanctuary & flow continuity */
+.mc-cognitive-sanctuary,
+.mc-sanctuary-canvas {
+  transition: opacity 0.85s ease, background 0.95s ease;
+}
+
+.mc-sanctuary-whisper {
+  opacity: 0.56;
+  letter-spacing: 0.024em;
+}
+
+.mc-deep-sanctuary-immersion .mc-breathe,
+.mc-sanctuary-stillness .mc-breathe,
+.mc-flow-continuity-protected .mc-ambient-pulse .mc-focus-primary {
+  animation: none !important;
+}
+
+.mc-deep-sanctuary-immersion-canvas,
+.mc-deep-sanctuary-immersion .mc-focus-primary {
+  padding: 60px 64px;
+  max-width: 1080px;
+  box-shadow: 0 44px 104px rgba(0, 0, 0, 0.36);
+}
+
+.mc-deep-sanctuary-immersion .mc-supporting-layer,
+.mc-deep-sanctuary-immersion .mc-tertiary-details,
+.mc-sanctuary-stillness .mc-supporting-layer {
+  display: none;
+}
+
+.mc-sidebar-near-imperceptible {
+  opacity: 0.64;
+}
+
+.mc-sanctuary-sidebar.mc-deep-sanctuary-immersion {
+  opacity: 0.58;
+}
+
+.mc-emotional-resilience .mc-focus-primary {
+  transition: border-color 1.2s ease, box-shadow 1.2s ease, padding 0.7s ease;
+}
+
+.mc-resilience-recovery .mc-presence-whisper {
+  opacity: 0.5;
+}
+
+.mc-cognitive-sustainability .mc-single-thought h2 {
+  letter-spacing: -0.034em;
+  line-height: 1.26;
+}
+
+[data-mc-sanctuary="immersive"] .mc-sidebar-domain:not([data-expanded="true"]) {
+  opacity: 0.36;
+}
+
+.mc-invisible-partnership .mc-presence-whisper {
+  font-size: 10px;
+  opacity: 0.46;
+}
+
+/* Phase 10.1.5.10 — Adaptive operational theming & accessibility */
+
+html[data-mc-theme="light"],
+html[data-mc-theme="light"] body {
+  background: var(--mc-bg, #f4f5f7);
+  color: var(--mc-text, #18181b);
+}
+
+html[data-mc-theme="dark"],
+html[data-mc-theme="dark"] body {
+  background: var(--mc-bg, #07070c);
+  color: var(--mc-text, #ececf1);
+}
+
+html[data-mc-theme="light"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-mc-theme="light"] textarea,
+html[data-mc-theme="light"] select {
+  background: #ffffff;
+  border-color: var(--mc-border, rgba(15, 23, 42, 0.12));
+  color: var(--mc-text, #18181b);
+}
+
+.mc-mobile-nav-backdrop {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .mc-mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.48);
+  }
+
+  html[data-mc-theme="light"] .mc-mobile-nav-backdrop {
+    background: rgba(15, 23, 42, 0.28);
+  }
+}
+
+[data-mc-a11y="high-readability"] .mc-nav-item,
+[data-mc-a11y="focus"] .mc-nav-item {
+  font-size: 13px;
+}
+
+[data-mc-a11y="high-readability"] .mc-domain-toggle,
+[data-mc-a11y="focus"] .mc-domain-toggle {
+  font-size: 13px;
+}
+
+[data-mc-a11y="reduced-atmosphere"] .mc-ambient-shell,
+[data-mc-a11y="focus"] .mc-ambient-shell {
+  box-shadow: none !important;
+}
+
+[data-mc-a11y="reduced-atmosphere"] .mc-breathe,
+[data-mc-a11y="reduced-atmosphere"] .mc-ambient-pulse,
+[data-mc-reduced-motion="true"] .mc-breathe,
+[data-mc-reduced-motion="true"] .mc-ambient-pulse {
+  animation: none !important;
+}
+
+.mc-reduced-motion .mc-breathe,
+.mc-reduced-motion .mc-ambient-pulse,
+.mc-reduced-motion .mc-fade-in {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-breathe,
+  .mc-ambient-pulse,
+  .mc-fade-in,
+  .mc-domain-body {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.mc-nav-item:hover,
+.mc-domain-toggle:hover {
+  background: color-mix(in srgb, var(--mc-text-muted, #b8b8c2) 8%, transparent);
+}
+
+html[data-mc-theme="light"] .mc-nav-item:hover,
+html[data-mc-theme="light"] .mc-domain-toggle:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.mc-domain-dimmed .mc-domain-toggle {
+  opacity: 0.88;
+}
+
+[data-mc-sanctuary="immersive"] .mc-sidebar-domain:not([data-expanded="true"]) {
+  opacity: 0.52;
+}
+
+/* Phase 10.1.5.11 — Operational visual grounding & information hierarchy */
+
+[data-mc-grounding="operational"] .mc-focus-primary {
+  background: var(--mc-surface-primary, var(--mc-bg-elevated)) !important;
+  border-color: var(--mc-border) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 10px 28px rgba(0, 0, 0, 0.14) !important;
+}
+
+html[data-mc-theme="light"][data-mc-grounding="operational"] .mc-focus-primary {
+  background: var(--mc-surface-primary, #ffffff) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 8px 24px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-mc-grounding="operational"] [data-mc-atmosphere="warm-focus"] .mc-focus-primary,
+[data-mc-grounding="operational"] [data-mc-atmosphere="restrained-urgency"] .mc-focus-primary,
+[data-mc-grounding="operational"] .mc-cognitive-harmony .mc-focus-primary,
+[data-mc-grounding="operational"] .mc-deep-sanctuary-immersion .mc-focus-primary,
+[data-mc-grounding="operational"] .mc-operational-serenity .mc-focus-primary {
+  background: var(--mc-surface-primary, var(--mc-bg-elevated)) !important;
+}
+
+[data-mc-grounding="operational"] .mc-focus-headline {
+  color: var(--mc-text-strong, var(--mc-text));
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+[data-mc-grounding="operational"] .mc-focus-primary .mc-atmosphere-whisper,
+[data-mc-grounding="operational"] .mc-focus-primary .mc-presence-whisper {
+  opacity: 0.88;
+}
+
+[data-mc-grounding="operational"] .mc-ambient-pulse .mc-focus-primary {
+  animation: none !important;
+}
+
+html[data-mc-theme="light"][data-mc-grounding="operational"] .mc-ambient-shell {
+  background: var(--mc-shell-gradient) !important;
+}
+
+[data-mc-a11y="standard"][data-mc-grounding="operational"] .mc-atmosphere-whisper {
+  opacity: 0.9;
+}
+
+/* Phase 10.1.5.12 — Operational signal hierarchy & cognitive focus energy */
+
+[data-mc-signal="hierarchy"] .mc-signal-dominant {
+  color: var(--mc-text-strong, var(--mc-text));
+  font-weight: 650;
+  font-size: 1.5rem;
+  line-height: 1.28;
+  letter-spacing: -0.028em;
+}
+
+[data-mc-signal="hierarchy"] .mc-signal-reassurance {
+  color: var(--mc-text-muted);
+  font-weight: 450;
+  font-size: 1rem;
+  line-height: 1.55;
+  max-width: 42rem;
+}
+
+[data-mc-signal="hierarchy"] .mc-signal-continuity {
+  color: var(--mc-text-muted);
+  font-weight: 420;
+  font-size: 0.9375rem;
+  line-height: 1.62;
+}
+
+[data-mc-signal="hierarchy"] .mc-signal-whisper {
+  color: var(--mc-text-dim);
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  opacity: 0.88;
+}
+
+html[data-mc-theme="light"][data-mc-signal="hierarchy"] .mc-signal-dominant {
+  color: var(--mc-text-strong, #09090b);
+}
+
+html[data-mc-theme="light"][data-mc-signal="hierarchy"] .mc-signal-reassurance {
+  color: #3f3f46;
+}
+
+html[data-mc-theme="light"][data-mc-signal="hierarchy"] .mc-signal-continuity {
+  color: #52525b;
+}
+
+html[data-mc-theme="light"][data-mc-signal="hierarchy"] .mc-signal-whisper {
+  color: #71717a;
+  opacity: 0.92;
+}
