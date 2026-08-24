@@ -38,6 +38,8 @@
 
 AethOS is a **secure operational intelligence platform** — not a chatbot wrapper and not an unrestricted shell.
 
+In plain terms: AethOS is an **open-source, self-hosted AI agent for DevOps and cloud operations**. It lets an LLM agent (Anthropic Claude, OpenAI, OpenRouter, or local models) safely run infrastructure tasks across **Railway, Vercel, and GitHub** — restart, redeploy, stop, and manage env vars — with **human-in-the-loop approval** on every mutation, full evidence, and an audit trail. Think "AI DevOps assistant" or "agentic ops platform" you actually control, on your own machine.
+
 It routes every operational action through a governed lifecycle:
 
 ```text
