@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -84,6 +86,7 @@ def _safe_build(name: str, builder, *, session_id: str) -> tuple[Any, bool]:
         return None, False
 
 
+@scoped_build
 def build_saas_launch_readiness_assessment(*, session_id: str) -> SaasLaunchReadinessAssessmentResult:
     sid = (session_id or "default").strip()[:64] or "default"
     records = list_saas_launch_readiness_assessment_records()

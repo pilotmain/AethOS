@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -111,6 +113,7 @@ def _governance_discussion_timeline(records: list[dict[str, Any]]) -> list[dict[
     return timeline
 
 
+@scoped_build
 def build_governance_deliberation_workspace(*, session_id: str) -> GovernanceDeliberationResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

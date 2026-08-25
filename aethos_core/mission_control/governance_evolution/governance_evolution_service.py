@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -288,6 +290,7 @@ def _historical_governance_narrative_reconstruction(*, records: list[dict[str, A
     ]
 
 
+@scoped_build
 def build_governance_evolution(*, session_id: str) -> GovernanceEvolutionResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

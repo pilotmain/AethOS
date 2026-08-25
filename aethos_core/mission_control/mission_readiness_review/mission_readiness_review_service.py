@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -241,6 +243,7 @@ def _go_no_go_hold_recommendation(
     }
 
 
+@scoped_build
 def build_mission_readiness_review(*, session_id: str) -> MissionReadinessReviewResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -484,6 +486,7 @@ def _learning_signals(
     return signals
 
 
+@scoped_build
 def build_operational_memory_graph(
     *,
     session_id: str,

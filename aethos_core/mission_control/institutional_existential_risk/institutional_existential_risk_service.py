@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -265,6 +267,7 @@ def _institutional_preservation_scoring(*, external_relations: dict[str, Any], r
     ]
 
 
+@scoped_build
 def build_institutional_existential_risk(*, session_id: str) -> InstitutionalExistentialRiskResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

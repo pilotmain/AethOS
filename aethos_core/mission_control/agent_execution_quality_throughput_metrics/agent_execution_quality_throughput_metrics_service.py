@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -289,6 +291,7 @@ def _end_to_end_throughput_score(
     }
 
 
+@scoped_build
 def build_agent_execution_quality_throughput_metrics(
     *, session_id: str
 ) -> AgentExecutionQualityThroughputMetricsResult:

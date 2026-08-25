@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from pathlib import Path
 from typing import Any
 
@@ -304,6 +306,7 @@ def documents_from_global_sources() -> list[dict[str, Any]]:
     return docs
 
 
+@scoped_build
 def build_knowledge_corpus(*, session_id: str, include_live: bool = True) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Return (documents, knowledge_spaces index)."""
     records = list_operational_memory_records(limit=200)

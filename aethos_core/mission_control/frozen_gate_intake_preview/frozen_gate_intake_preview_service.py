@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Callable
@@ -420,6 +422,7 @@ def _intake_integrity_scoring(
     ]
 
 
+@scoped_build
 def build_frozen_gate_intake_preview(*, session_id: str) -> FrozenGateIntakePreviewResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -328,6 +330,7 @@ def intent_alignment_gate_satisfied(*, session_id: str, timeline: dict[str, Any]
     )
 
 
+@scoped_build
 def build_issue_intent_alignment(*, session_id: str) -> IssueIntentAlignmentResult:
     sid = (session_id or "default").strip()[:64] or "default"
     exported_at = _exported_at()

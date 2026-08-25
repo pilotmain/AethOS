@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -343,6 +345,7 @@ def _evidence_index(
     return entries
 
 
+@scoped_build
 def build_pilotos_ui_trust_report_freeze(*, session_id: str) -> PilotosUiTrustReportFreezeResult:
     sid = (session_id or "default").strip()[:64] or "default"
     exported_at = _exported_at()

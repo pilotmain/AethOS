@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -380,6 +382,7 @@ def _merge_handoff_artifact(
     }
 
 
+@scoped_build
 def build_governed_merge_lifecycle(*, session_id: str) -> GovernedMergeLifecycleResult:
     sid = (session_id or "default").strip()[:64] or "default"
     plan = load_issue_plan_for_session(session_id=sid)

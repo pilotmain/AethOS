@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -248,6 +250,7 @@ def _institutional_wisdom_continuity(*, records: list[dict[str, Any]]) -> list[d
     ]
 
 
+@scoped_build
 def build_constitutional_synthesis(*, session_id: str) -> ConstitutionalSynthesisResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

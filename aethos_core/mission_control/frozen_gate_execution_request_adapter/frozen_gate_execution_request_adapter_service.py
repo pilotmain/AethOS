@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -353,6 +355,7 @@ def _request_integrity_scoring(
     ]
 
 
+@scoped_build
 def build_frozen_gate_execution_request_adapter(
     *, session_id: str
 ) -> FrozenGateExecutionRequestAdapterResult:

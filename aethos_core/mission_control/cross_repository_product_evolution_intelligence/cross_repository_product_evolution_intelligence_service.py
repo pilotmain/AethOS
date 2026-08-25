@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -432,6 +434,7 @@ def _operator_opportunities(records: list[dict[str, Any]]) -> list[dict[str, Any
     return out
 
 
+@scoped_build
 def build_cross_repository_product_evolution_intelligence(
     *, session_id: str
 ) -> CrossRepositoryProductEvolutionIntelligenceResult:

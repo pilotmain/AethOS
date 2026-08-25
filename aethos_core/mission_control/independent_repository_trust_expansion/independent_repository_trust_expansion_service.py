@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -377,6 +379,7 @@ def _readiness_ok_fast(*, session_id: str) -> bool:
     return load_issue_plan_for_session(session_id=session_id) is not None
 
 
+@scoped_build
 def build_independent_repository_trust_expansion(
     *, session_id: str, fast_path: bool = True
 ) -> IndependentRepositoryTrustExpansionResult:

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -112,6 +114,7 @@ def _platform_domain_sections(
     }
 
 
+@scoped_build
 def build_capability_registry_runtime_integration(
     *, session_id: str
 ) -> CapabilityRegistryRuntimeIntegrationResult:

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -302,6 +304,7 @@ def _eligibility(
     }
 
 
+@scoped_build
 def build_governed_rerun_plan(
     *,
     session_id: str,

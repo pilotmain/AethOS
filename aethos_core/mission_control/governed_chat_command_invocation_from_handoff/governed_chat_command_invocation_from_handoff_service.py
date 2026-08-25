@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -337,6 +339,7 @@ def _invocation_integrity_scoring(
     ]
 
 
+@scoped_build
 def build_governed_chat_command_invocation_from_handoff(
     *, session_id: str
 ) -> GovernedChatCommandInvocationFromHandoffResult:

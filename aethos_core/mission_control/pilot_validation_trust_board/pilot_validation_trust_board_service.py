@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -296,6 +298,7 @@ def _pilot_audit_composition(*, audits: list[dict[str, Any]], focus_audit: dict[
     ]
 
 
+@scoped_build
 def build_pilot_validation_trust_board(*, session_id: str) -> PilotValidationTrustBoardResult:
     sid = (session_id or "default").strip()[:64] or "default"
     exported_at = _exported_at()

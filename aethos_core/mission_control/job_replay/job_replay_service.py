@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 import copy
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -281,6 +283,7 @@ def _build_replay_steps(bundle: dict[str, Any]) -> list[dict[str, Any]]:
     return steps
 
 
+@scoped_build
 def build_job_replay(*, session_id: str, job_id: str | None = None) -> JobReplayResult:
     sid = (session_id or "default").strip()[:64] or "default"
     focus = (job_id or "").strip() or None

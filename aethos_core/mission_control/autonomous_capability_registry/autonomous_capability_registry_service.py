@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 import inspect
 import re
 import shutil
@@ -495,6 +497,7 @@ def _self_awareness_report(
     ]
 
 
+@scoped_build
 def build_autonomous_capability_registry(*, session_id: str) -> AutonomousCapabilityRegistryResult:
     sid = (session_id or "default").strip()[:64] or "default"
     capability_records = list_autonomous_capability_registry_records()

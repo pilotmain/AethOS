@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -701,6 +703,7 @@ def _delivery_generalization_assessment(*, validation_rows: list[dict[str, Any]]
     }
 
 
+@scoped_build
 def build_cross_repository_multi_agent_delivery_validation(
     *, session_id: str
 ) -> CrossRepositoryMultiAgentDeliveryValidationResult:

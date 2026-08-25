@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -110,6 +112,7 @@ def _supported_actions(channel: str) -> list[str]:
     return []
 
 
+@scoped_build
 def build_channel_integration_foundation(*, session_id: str) -> ChannelIntegrationFoundationResult:
     sid = (session_id or "default").strip()[:64] or "default"
     user_id = _resolve_user(session_id=sid)

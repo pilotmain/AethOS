@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -61,6 +63,7 @@ def _section(freeze: dict[str, Any], key: str) -> dict[str, Any]:
     return rows[0] if rows else {}
 
 
+@scoped_build
 def build_launch_decision_package(*, session_id: str) -> LaunchDecisionPackageResult:
     sid = (session_id or "default").strip()[:64] or "default"
     records = list_launch_decision_package_records()

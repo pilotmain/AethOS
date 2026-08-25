@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -498,6 +500,7 @@ def _recovery_timeline(
     return events
 
 
+@scoped_build
 def build_governed_rollback_lifecycle(*, session_id: str) -> GovernedRollbackLifecycleResult:
     sid = (session_id or "default").strip()[:64] or "default"
     plan = load_issue_plan_for_session(session_id=sid)

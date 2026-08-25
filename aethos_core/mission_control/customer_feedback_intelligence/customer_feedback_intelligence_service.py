@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -58,6 +60,7 @@ def _exported_at() -> str:
     return datetime.now(UTC).isoformat()
 
 
+@scoped_build
 def build_customer_feedback_intelligence(*, session_id: str = "default") -> CustomerFeedbackIntelligenceResult:
     sid = (session_id or "default").strip()[:64] or "default"
     evidence = collect_feedback_evidence(session_id=sid)

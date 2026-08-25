@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -72,6 +74,7 @@ def _provider_matrix_rows(capability_payload: dict[str, Any]) -> dict[str, dict[
     return by_name
 
 
+@scoped_build
 def build_provider_connection_experience(*, session_id: str) -> ProviderConnectionExperienceResult:
     sid = (session_id or "default").strip()[:64] or "default"
     records = list_provider_connection_experience_records()

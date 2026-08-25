@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -284,6 +286,7 @@ def _institutional_resilience_scoring(*, coherence: dict[str, Any]) -> dict[str,
     }
 
 
+@scoped_build
 def build_governance_resilience(*, session_id: str) -> GovernanceResilienceResult:
     sid = (session_id or "default").strip()[:64] or "default"
 
