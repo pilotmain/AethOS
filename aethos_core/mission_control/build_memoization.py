@@ -29,6 +29,10 @@ _CACHE: contextvars.ContextVar[dict[Any, Any] | None] = contextvars.ContextVar(
     "mission_control_build_cache", default=None
 )
 
+# Sentinel: key is currently being computed. Prevents infinite recursion if a
+# builder re-enters itself (directly or via a cycle) before the first result is stored.
+_IN_PROGRESS: object = object()
+
 F = TypeVar("F", bound=Callable[..., Any])
 
 _SCALAR = (str, int, float, bool)
@@ -39,6 +43,14 @@ def _cache_key(fn: Callable[..., Any], kwargs: dict[str, Any]) -> tuple[Any, ...
         sorted((k, v) for k, v in kwargs.items() if v is None or isinstance(v, _SCALAR))
     )
     return (fn.__module__, fn.__qualname__, scalar_kwargs)
+
+
+def _clone(value: Any) -> Any:
+    try:
+        return copy.deepcopy(value)
+    except (RecursionError, TypeError):
+        # Circular / un-copyable graphs: prefer sharing the cached object over failing.
+        return value
 
 
 def scoped_build(fn: F) -> F:
@@ -57,14 +69,28 @@ def scoped_build(fn: F) -> F:
         store = _CACHE.get()
         if store is not None:
             if key in store:
-                return copy.deepcopy(store[key])
-            result = fn(**kwargs)
+                cached = store[key]
+                if cached is _IN_PROGRESS:
+                    # Re-entrant / cyclic call while computing — run uncached.
+                    return fn(**kwargs)
+                return _clone(cached)
+            store[key] = _IN_PROGRESS
+            try:
+                result = fn(**kwargs)
+            except BaseException:
+                store.pop(key, None)
+                raise
             store[key] = result
-            return copy.deepcopy(result)
+            return _clone(result)
         store = {}
         token = _CACHE.set(store)
         try:
-            result = fn(**kwargs)
+            store[key] = _IN_PROGRESS
+            try:
+                result = fn(**kwargs)
+            except BaseException:
+                store.pop(key, None)
+                raise
             store[key] = result
             return result
         finally:
