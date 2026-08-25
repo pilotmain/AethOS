@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -66,6 +68,7 @@ def load_mission_control_config() -> dict[str, Any]:
     }
 
 
+@scoped_build
 def build_mission_control_snapshot(*, session_id: str) -> MissionControlSnapshotResult:
     cfg = load_mission_control_config()
     if not cfg["enabled"]:

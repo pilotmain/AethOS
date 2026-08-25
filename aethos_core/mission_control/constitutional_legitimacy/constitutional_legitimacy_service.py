@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -215,6 +217,7 @@ def _institutional_credibility_reconstruction(*, records: list[dict[str, Any]], 
     ]
 
 
+@scoped_build
 def build_constitutional_legitimacy(*, session_id: str) -> ConstitutionalLegitimacyResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

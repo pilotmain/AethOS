@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -616,6 +618,7 @@ def _collect_operational_deployment_approvals() -> list[dict[str, Any]]:
     return items
 
 
+@scoped_build
 def build_approval_inbox(*, session_id: str) -> ApprovalInboxResult:
     from aethos_core.mission_control.cross_lane.snapshot_service import load_mission_control_config
 
@@ -657,6 +660,7 @@ def build_approval_inbox(*, session_id: str) -> ApprovalInboxResult:
     )
 
 
+@scoped_build
 def approval_inbox_payload(*, session_id: str) -> dict[str, Any]:
     result = build_approval_inbox(session_id=session_id)
     if not result.ok:

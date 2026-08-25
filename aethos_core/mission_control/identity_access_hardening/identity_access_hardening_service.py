@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -387,6 +389,7 @@ def _session_trust_report(*, session_id: str, user_id: str) -> list[dict[str, An
     ]
 
 
+@scoped_build
 def build_identity_access_hardening(*, session_id: str) -> IdentityAccessHardeningResult:
     sid = (session_id or "default").strip()[:64] or "default"
     user_id = _resolve_session_user(session_id=sid)

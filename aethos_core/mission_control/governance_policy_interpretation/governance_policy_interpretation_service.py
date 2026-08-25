@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -331,6 +333,7 @@ def _constitutional_consistency_checks(*, records: list[dict[str, Any]], doctrin
     return checks
 
 
+@scoped_build
 def build_governance_policy_interpretation(*, session_id: str) -> GovernancePolicyInterpretationResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

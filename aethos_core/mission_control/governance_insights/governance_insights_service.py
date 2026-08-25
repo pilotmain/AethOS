@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -337,6 +339,7 @@ def _meta_recommendations(insights: dict[str, Any]) -> list[dict[str, Any]]:
     return recs
 
 
+@scoped_build
 def build_governance_insights(*, session_id: str) -> GovernanceInsightsResult:
     sid = (session_id or "default").strip()[:64] or "default"
     signals = collect_governance_signals(session_id=sid)

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -110,6 +112,7 @@ def _payload(result: Any, attr: str) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+@scoped_build
 def build_public_launch_readiness_freeze(*, session_id: str) -> PublicLaunchReadinessFreezeResult:
     sid = (session_id or "default").strip()[:64] or "default"
     records = list_public_launch_readiness_freeze_records()

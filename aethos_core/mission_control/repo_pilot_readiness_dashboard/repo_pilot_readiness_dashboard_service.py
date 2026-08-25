@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 import os
 import re
 from dataclasses import dataclass, field
@@ -432,6 +434,7 @@ def _audit_replay_linkage_at_readiness(
     ]
 
 
+@scoped_build
 def build_repo_pilot_readiness_dashboard(*, session_id: str) -> RepoPilotReadinessDashboardResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

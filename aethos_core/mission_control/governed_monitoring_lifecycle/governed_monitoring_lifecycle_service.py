@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -445,6 +447,7 @@ def _incident_escalation_artifact(
     }
 
 
+@scoped_build
 def build_governed_monitoring_lifecycle(*, session_id: str) -> GovernedMonitoringLifecycleResult:
     sid = (session_id or "default").strip()[:64] or "default"
     plan = load_issue_plan_for_session(session_id=sid)

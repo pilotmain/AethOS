@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -228,6 +230,7 @@ def _ethical_coherence_scoring(*, records: list[dict[str, Any]], existential_ris
     ]
 
 
+@scoped_build
 def build_constitutional_ethics(*, session_id: str) -> ConstitutionalEthicsResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

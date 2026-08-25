@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -253,6 +255,7 @@ def _decision_integrity_scoring(*, records: list[dict[str, Any]]) -> list[dict[s
     ]
 
 
+@scoped_build
 def build_human_decision_board(*, session_id: str) -> HumanDecisionBoardResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

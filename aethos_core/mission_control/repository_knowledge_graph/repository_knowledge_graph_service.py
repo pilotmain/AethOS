@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -571,6 +573,7 @@ def _monitoring_classification(*, session_id: str, plan_id: str) -> str | None:
     return "WARNING"
 
 
+@scoped_build
 def build_repository_knowledge_graph(*, session_id: str) -> RepositoryKnowledgeGraphResult:
     sid = (session_id or "default").strip()[:64] or "default"
     plan = load_issue_plan_for_session(session_id=sid)

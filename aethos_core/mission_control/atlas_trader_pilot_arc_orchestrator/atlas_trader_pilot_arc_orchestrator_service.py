@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -269,6 +271,7 @@ def _pilot_readiness_summary(*, gates: dict[str, Any], arc_state: str) -> dict[s
     }
 
 
+@scoped_build
 def build_atlas_trader_pilot_arc_orchestrator(*, session_id: str) -> AtlasTraderPilotArcOrchestratorResult:
     sid = (session_id or "default").strip()[:64] or "default"
     exported_at = _exported_at()

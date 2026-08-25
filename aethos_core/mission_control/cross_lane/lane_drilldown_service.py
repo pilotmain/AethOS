@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -91,6 +93,7 @@ def _receipt_files(relative_dir: str, *, limit: int = 6) -> list[dict[str, Any]]
     return receipts
 
 
+@scoped_build
 def build_lane_drilldown(*, session_id: str, lane: str) -> LaneDrilldownResult:
     lane_key = (lane or "").strip()
     if lane_key not in OBSERVED_LANES:

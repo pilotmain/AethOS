@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -112,6 +114,7 @@ def _collect_audit_entries(*, org_id: str, session_id: str) -> list[dict[str, An
     return entries
 
 
+@scoped_build
 def build_customer_usage_audit_portal(*, session_id: str) -> CustomerUsageAuditPortalResult:
     sid = (session_id or "default").strip()[:64] or "default"
     user_id = _resolve_user(session_id=sid)

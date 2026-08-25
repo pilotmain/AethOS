@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -294,6 +296,7 @@ def _high_friction_archetypes(*, simulation: dict[str, Any], records: list[dict[
     return archetypes
 
 
+@scoped_build
 def build_mission_strategy(*, session_id: str) -> MissionStrategyResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

@@ -34,7 +34,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -c requirements.lock -e ".[dev,secrets,cloud]"
           # Headless Linux runners have no OS keyring; vault tests need a backend.
-          pip install ruff keyrings.alt
+          # pytest-timeout turns any pathological hang into a fast, named failure
+          # instead of silently consuming the whole job budget.
+          pip install ruff keyrings.alt pytest-timeout
       - name: Syntax check (compileall)
         run: python -m compileall -q aethos_core aethos_sdk
       - name: Lint (real errors only)
@@ -47,7 +49,7 @@ jobs:
         env:
           USE_REAL_LLM: "false"
           ACTIVE_PROVIDER: "none"
-        run: python -m pytest tests/test_beta_smoke_harness.py -q -p no:cacheprovider
+        run: python -m pytest tests/test_beta_smoke_harness.py -q -p no:cacheprovider --timeout=120 --timeout-method=signal
       - name: Behavioral corpus (masterpiece gates)
         env:
           USE_REAL_LLM: "false"
@@ -57,12 +59,15 @@ jobs:
         env:
           USE_REAL_LLM: "false"
           ACTIVE_PROVIDER: "none"
-        run: python -m pytest tests/test_chat_20_turn.py -q -p no:cacheprovider
+        run: python -m pytest tests/test_chat_20_turn.py -q -p no:cacheprovider --timeout=120 --timeout-method=signal
       - name: Pytest (full suite)
         env:
           USE_REAL_LLM: "false"
           ACTIVE_PROVIDER: "none"
-        run: python -m pytest tests -q -p no:cacheprovider
+        # Per-test timeout is a safety net: no single test may hang the job. A test
+        # exceeding the limit fails with a stack trace naming it, rather than the
+        # whole suite silently timing out at the job level.
+        run: python -m pytest tests -q -p no:cacheprovider --timeout=120 --timeout-method=signal
 
   web:
     name: Web typecheck + tests

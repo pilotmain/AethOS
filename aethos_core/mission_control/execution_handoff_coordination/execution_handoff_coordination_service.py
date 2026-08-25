@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -369,6 +371,7 @@ def _handoff_integrity_scoring(*, records: list[dict[str, Any]], handoff_ready: 
     ]
 
 
+@scoped_build
 def build_execution_handoff_coordination(*, session_id: str) -> ExecutionHandoffCoordinationResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

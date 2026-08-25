@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -77,6 +79,7 @@ def _resolve_user(*, session_id: str) -> str:
     return sid if sid != "default" else "default"
 
 
+@scoped_build
 def build_customer_administration_console(*, session_id: str) -> CustomerAdministrationConsoleResult:
     sid = (session_id or "default").strip()[:64] or "default"
     user_id = _resolve_user(session_id=sid)

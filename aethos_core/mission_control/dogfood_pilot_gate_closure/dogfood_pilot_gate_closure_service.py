@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -307,6 +309,7 @@ def _build_result(*, ctx: _GateClosureContext) -> DogfoodPilotGateClosureResult:
     )
 
 
+@scoped_build
 def build_dogfood_pilot_gate_closure(*, session_id: str) -> DogfoodPilotGateClosureResult:
     sid = (session_id or "default").strip()[:64] or "default"
     now = time.monotonic()

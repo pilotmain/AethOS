@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -288,6 +290,7 @@ def _first_mission_control_activation_packet(*, session_id: str) -> list[dict[st
     ]
 
 
+@scoped_build
 def build_tenant_onboarding_activation(*, session_id: str) -> TenantOnboardingActivationResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

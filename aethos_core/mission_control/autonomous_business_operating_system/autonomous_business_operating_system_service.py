@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -512,6 +514,7 @@ def _business_operating_memory(
     ]
 
 
+@scoped_build
 def build_autonomous_business_operating_system(*, session_id: str) -> AutonomousBusinessOperatingSystemResult:
     sid = (session_id or "default").strip()[:64] or "default"
     business_records = list_autonomous_business_operating_system_records()

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -195,6 +197,7 @@ def _execution_readiness(*, pipeline_state: str, gates: dict[str, Any]) -> dict[
     }
 
 
+@scoped_build
 def build_bounded_multi_agent_delivery_execution(
     *, session_id: str
 ) -> BoundedMultiAgentDeliveryExecutionResult:

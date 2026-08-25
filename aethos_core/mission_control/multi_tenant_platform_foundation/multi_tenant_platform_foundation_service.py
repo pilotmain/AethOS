@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -373,6 +375,7 @@ def _channel_registry() -> list[dict[str, Any]]:
     ]
 
 
+@scoped_build
 def build_multi_tenant_platform_foundation(*, session_id: str) -> MultiTenantPlatformFoundationResult:
     sid = (session_id or "default").strip()[:64] or "default"
     tenant_records = list_multi_tenant_platform_foundation_records()

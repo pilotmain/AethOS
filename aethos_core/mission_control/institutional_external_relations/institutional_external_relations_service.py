@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -229,6 +231,7 @@ def _cross_system_trust_continuity(*, records: list[dict[str, Any]]) -> list[dic
     ]
 
 
+@scoped_build
 def build_institutional_external_relations(*, session_id: str) -> InstitutionalExternalRelationsResult:
     sid = (session_id or "default").strip()[:64] or "default"
 

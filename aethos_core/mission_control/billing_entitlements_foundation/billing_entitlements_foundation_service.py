@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from aethos_core.mission_control.build_memoization import scoped_build
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -81,6 +83,7 @@ def _usage_snapshot(*, org_id: str) -> dict[str, int]:
     }
 
 
+@scoped_build
 def build_billing_entitlements_foundation(*, session_id: str) -> BillingEntitlementsFoundationResult:
     sid = (session_id or "default").strip()[:64] or "default"
     records = list_billing_entitlements_foundation_records()
